@@ -115,18 +115,32 @@ CLI может работать через GRPC/HTTP интерфейс.
 Проверка будет произведена в отдельном модуле в возможностью будущих изменений стратегии разрешения конфликтов blacklist и whitelist.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Начальная структура проекта
++-- cmd/
+¦   +-- server/           # точка входа для API-сервера
+¦   ¦   L-- main.go
+¦   L-- cli/              # точка входа для CLI
+¦       L-- main.go
++-- internal/
+¦   +-- api/              # HTTP/gRPC handlers
+¦   ¦   +-- handler.go
+¦   ¦   L-- middleware.go
+¦   +-- bucket/           # реализация rate limiter
+¦   ¦   +-- bucket.go
+¦   ¦   L-- memory.go     # in-memory хранилище
+¦   +-- storage/          # работа с БД (настройки, списки)
+¦   ¦   L-- postgres.go
+¦   +-- models/           # общие модели данных
+¦   ¦   L-- models.go
+¦   +-- config/           # конфигурация
+¦   ¦   L-- config.go
+¦   L-- service/          # бизнес-логика
+¦       L-- service.go
++-- pkg/                  # публичные пакеты (если будут)
++-- migrations/           # SQL миграции
++-- tests/                # интеграционные тесты
++-- docker-compose.yml
++-- Dockerfile
++-- Makefile
++-- go.mod
+L-- README.md
