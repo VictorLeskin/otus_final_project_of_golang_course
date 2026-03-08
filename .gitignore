@@ -1,28 +1,18 @@
 # Binaries 
 *.exe 
-*.exe~ 
 *.dll 
-*.so 
-*.dylib 
 *.test 
 *.out 
-*.exe 
-Режим вывода команд на экран (ECHO) отключен.
 # Dependency directories 
 vendor/ 
 node_modules/ 
-Режим вывода команд на экран (ECHO) отключен.
 # Go workspace files 
-*.mod 
-*.sum 
-Режим вывода команд на экран (ECHO) отключен.
 # IDE 
 .idea/ 
 .vscode/ 
 *.swp 
 *.swo 
 *~ 
-Режим вывода команд на экран (ECHO) отключен.
 # OS generated files 
 .DS_Store 
 .DS_Store? 
@@ -31,7 +21,6 @@ node_modules/
 .Trashes 
 ehthumbs.db 
 Thumbs.db 
-Режим вывода команд на экран (ECHO) отключен.
 # Docker 
 *.pid 
 *.log 
