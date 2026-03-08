@@ -1,32 +1,39 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Code coverage profiles and other test artifacts
-*.out
-coverage.*
-*.coverprofile
-profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
-go.work
-go.work.sum
-
-# env file
-.env
-
-# Editor/IDE
-# .idea/
-# .vscode/
+# Binaries 
+*.exe 
+*.exe~ 
+*.dll 
+*.so 
+*.dylib 
+*.test 
+*.out 
+*.exe 
+Режим вывода команд на экран (ECHO) отключен.
+# Dependency directories 
+vendor/ 
+node_modules/ 
+Режим вывода команд на экран (ECHO) отключен.
+# Go workspace files 
+*.mod 
+*.sum 
+Режим вывода команд на экран (ECHO) отключен.
+# IDE 
+.idea/ 
+.vscode/ 
+*.swp 
+*.swo 
+*~ 
+Режим вывода команд на экран (ECHO) отключен.
+# OS generated files 
+.DS_Store 
+.DS_Store? 
+._* 
+.Spotlight-V100 
+.Trashes 
+ehthumbs.db 
+Thumbs.db 
+Режим вывода команд на экран (ECHO) отключен.
+# Docker 
+*.pid 
+*.log 
+*.sqlite 
+.env 
