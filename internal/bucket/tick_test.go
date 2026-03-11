@@ -27,3 +27,11 @@ func TestTick_Arithmetic(t *testing.T) {
 	assert.Equal(t, int64(10), tick.Sub(Tick(90)))
 	assert.Equal(t, int64(-10), tick.Sub(Tick(110)))
 }
+
+func TestTick_String(t *testing.T) {
+	now := time.Date(2024, 1, 1, 12, 0, 30, 500000000, time.UTC)
+	tick := NewTick(now)
+
+	// Проверяем, что округлилось до секунд (отбросили наносекунды)
+	assert.Equal(t, "15:00:30.500", tick.String())
+}

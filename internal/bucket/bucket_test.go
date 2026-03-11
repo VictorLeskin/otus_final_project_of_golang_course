@@ -83,3 +83,12 @@ func TestBucket_leak(t *testing.T) {
 	assert.Equal(t, Tick(32_501), t0.lastLeak)
 	assert.Equal(t, 0, t0.drops)
 }
+
+func TestBucket_NewBucketFromRPM(t *testing.T) {
+	t0 := NewBucketFromRPM("K0", 100)
+
+	assert.Equal(t, "K0", t0.Key())
+	assert.Equal(t, 0, t0.WaterLevel())
+	assert.Equal(t, 100, t0.Remaining())
+	assert.Equal(t, 600, t0.leakRate) // 100 tockens per minuter = 600 ms per tocken
+}
