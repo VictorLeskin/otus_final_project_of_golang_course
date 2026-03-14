@@ -91,6 +91,13 @@ func (b *Bucket) WaterLevel() int {
 	return b.drops
 }
 
+// WaterLevel возвращает true если ведро пустое
+func (b *Bucket) IsEmpty() bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.drops == 0
+}
+
 // Remaining возвращает оставшееся место в ведре.
 func (b *Bucket) Remaining() int {
 	b.mu.RLock()

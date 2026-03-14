@@ -106,3 +106,12 @@ func TestBucket_NewBucketFromRPM(t *testing.T) {
 	assert.Equal(t, 100, t0.Remaining())
 	assert.Equal(t, 600, t0.leakRate) // 100 tockens per minuter = 600 ms per tocken
 }
+
+func TestBucket_IsEmpty(t *testing.T) {
+	// Ведро на 3 запроса, утечка 1 запрос в секунду
+	t0 := NewBucket("test", 3, 1000)
+
+	assert.True(t, t0.IsEmpty())
+	assert.True(t, t0.Allow(Tick(32000))) // water=1
+	assert.False(t, t0.IsEmpty())
+}
