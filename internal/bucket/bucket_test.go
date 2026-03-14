@@ -53,6 +53,20 @@ func TestBucket_Allow(t *testing.T) {
 	assert.False(t, t0.Allow(tick)) // water=3
 }
 
+func TestBucket_AllowRealTime(t *testing.T) {
+	initTickMs := Tick(1773483538422)
+	// Ведро на 3 запроса, утечка 1 запрос в секунду
+	t0 := NewBucket("test", 3, 1000)
+
+	tick := initTickMs // начальное время
+
+	// Наполняем ведро
+	assert.True(t, t0.Allow(tick)) // water=1
+	assert.Equal(t, 1, t0.drops)
+	assert.True(t, t0.Allow(tick+1000)) // water=1
+	assert.Equal(t, 1, t0.drops)
+}
+
 func TestBucket_leak(t *testing.T) {
 	var t0 Bucket
 
