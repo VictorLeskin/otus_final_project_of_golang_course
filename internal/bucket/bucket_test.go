@@ -65,6 +65,9 @@ func TestBucket_AllowRealTime(t *testing.T) {
 	assert.Equal(t, 1, t0.drops)
 	assert.True(t, t0.Allow(tick+1000)) // water=1
 	assert.Equal(t, 1, t0.drops)
+
+	assert.False(t, t0.TimeUpdate(tick+6000)) // water=1
+	assert.Equal(t, 0, t0.drops)
 }
 
 func TestBucket_leak(t *testing.T) {
@@ -94,6 +97,36 @@ func TestBucket_leak(t *testing.T) {
 
 	// dropped out from empty bucket
 	t0.leak(Tick(32_501))
+	assert.Equal(t, Tick(32_501), t0.lastLeak)
+	assert.Equal(t, 0, t0.drops)
+}
+
+func TestBucket_TimeUpdate(t *testing.T) {
+	var t0 Bucket
+
+	t0.leakRate = 100 // allowed 1 drop per 100 ms
+	t0.lastLeak = Tick(32_000)
+	t0.drops = 3
+
+	t0.TimeUpdate(Tick(32_099))
+	assert.Equal(t, Tick(32_000), t0.lastLeak)
+	assert.Equal(t, 3, t0.drops)
+
+	t0.TimeUpdate(Tick(32_101))
+	assert.Equal(t, Tick(32_101), t0.lastLeak)
+	assert.Equal(t, 2, t0.drops)
+
+	t0.TimeUpdate(Tick(32_201))
+	assert.Equal(t, Tick(32_201), t0.lastLeak)
+	assert.Equal(t, 1, t0.drops)
+
+	// dropped out all
+	t0.TimeUpdate(Tick(32_401))
+	assert.Equal(t, Tick(32_401), t0.lastLeak)
+	assert.Equal(t, 0, t0.drops)
+
+	// dropped out from empty bucket
+	t0.TimeUpdate(Tick(32_501))
 	assert.Equal(t, Tick(32_501), t0.lastLeak)
 	assert.Equal(t, 0, t0.drops)
 }

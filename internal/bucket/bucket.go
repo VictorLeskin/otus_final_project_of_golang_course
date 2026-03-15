@@ -49,6 +49,17 @@ func (b *Bucket) Allow(tick Tick) bool {
 	return false
 }
 
+// TimeUpdate обновляет состояние для данного момента времени
+// возвращает true если ведро не пусто.
+func (b *Bucket) TimeUpdate(tick Tick) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.leak(tick)
+
+	return b.drops != 0
+}
+
 // leak выливает воду из ведра пропорционально прошедшему времени.
 func (b *Bucket) leak(tick Tick) {
 	elapsed := tick.Sub(b.lastLeak) // разница в миллисекундах
@@ -91,7 +102,7 @@ func (b *Bucket) WaterLevel() int {
 	return b.drops
 }
 
-// WaterLevel возвращает true если ведро пустое
+// WaterLevel возвращает true если ведро пустое.
 func (b *Bucket) IsEmpty() bool {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

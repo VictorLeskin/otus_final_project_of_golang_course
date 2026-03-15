@@ -5,14 +5,14 @@ import (
 	"time"
 )
 
-// BucketCollection представляет коллекцию bucket'ов одного типа (login/password/IP)
+// BucketCollection представляет коллекцию bucket'ов одного типа (login/password/IP).
 type BucketCollection struct {
-	buckets        *sync.Map // map[string]*Bucket
+	buckets        *sync.Map // map[string]*Bucket ....
 	capacity       int
 	leakRateMillis int
 }
 
-// NewBucketCollection создает новую коллекцию bucket'ов
+// NewBucketCollection создает новую коллекцию bucket'ов.
 func NewBucketCollection(maxAttemptsPM int) *BucketCollection {
 	leakRateMillis := 60000 / maxAttemptsPM
 	return &BucketCollection{
@@ -22,7 +22,7 @@ func NewBucketCollection(maxAttemptsPM int) *BucketCollection {
 	}
 }
 
-// BucketManager управляет всеми bucket'ами для rate limiting'а
+// BucketManager управляет всеми bucket'ами для rate limiting'а.
 type BucketManager struct {
 	loginBuckets    *BucketCollection
 	passwordBuckets *BucketCollection
@@ -34,34 +34,38 @@ type BucketManager struct {
 	wg          sync.WaitGroup
 }
 
-// Config содержит настройки rate limiting'а
+// Config содержит настройки rate limiting'а.
 type Config struct {
-	N int // max attempts per minute for login
-	M int // max attempts per minute for password
-	K int // max attempts per minute for IP
+	loginRate    int // max attempts per minute for login
+	passwordRate int // max attempts per minute for password
+	ipRate       int // max attempts per minute for IP address
 
 	CleanupInterval time.Duration // как часто чистить пустые bucket'ы
 }
 
-// NewBucketManager создает новый менеджер bucket'ов
+func DefaultConfig() *Config {
+	return &Config{
+		loginRate:       10, // no more 10 times in  1 minute
+		passwordRate:    100,
+		ipRate:          1000,
+		CleanupInterval: 1 * time.Minute, // once a minute
+	}
+}
+
+// NewBucketManager создает новый менеджер bucket'ов.
 func NewBucketManager(config *Config) *BucketManager {
 	if config == nil {
-		config = &Config{
-			N:               10,
-			M:               100,
-			K:               1000,
-			CleanupInterval: 5 * time.Minute,
-		}
+		config = DefaultConfig()
 	}
 
 	if config.CleanupInterval == 0 {
-		config.CleanupInterval = 5 * time.Minute
+		config.CleanupInterval = DefaultConfig().CleanupInterval
 	}
 
 	m := &BucketManager{
-		loginBuckets:    NewBucketCollection(config.N),
-		passwordBuckets: NewBucketCollection(config.M),
-		ipBuckets:       NewBucketCollection(config.K),
+		loginBuckets:    NewBucketCollection(config.loginRate),
+		passwordBuckets: NewBucketCollection(config.passwordRate),
+		ipBuckets:       NewBucketCollection(config.ipRate),
 		config:          config,
 		stopCleanup:     make(chan struct{}),
 	}
@@ -70,7 +74,7 @@ func NewBucketManager(config *Config) *BucketManager {
 	return m
 }
 
-// Stop останавливает фоновую очистку
+// Stop останавливает фоновую очистку.
 func (m *BucketManager) Stop() {
 	close(m.stopCleanup)
 	m.wg.Wait()
@@ -94,11 +98,13 @@ func (m *BucketManager) startCleanup() {
 	}()
 }
 
-func (m *BucketManager) cleanupCollection(collection *BucketCollection) {
+func (m *BucketManager) cleanupCollection(collection *BucketCollection, tick Tick) {
 	var keysToDelete []string
+	// обновить состояние ведра для текущего времени и
+	// если оно пусто удалить его.
 
 	collection.buckets.Range(func(key, value interface{}) bool {
-		if value.(*Bucket).IsEmpty() {
+		if !value.(*Bucket).TimeUpdate(tick) {
 			keysToDelete = append(keysToDelete, key.(string))
 		}
 		return true
@@ -110,9 +116,11 @@ func (m *BucketManager) cleanupCollection(collection *BucketCollection) {
 }
 
 func (m *BucketManager) cleanup() {
-	m.cleanupCollection(m.loginBuckets)
-	m.cleanupCollection(m.passwordBuckets)
-	m.cleanupCollection(m.ipBuckets)
+	now := NowTick()
+
+	m.cleanupCollection(m.loginBuckets, now)
+	m.cleanupCollection(m.passwordBuckets, now)
+	m.cleanupCollection(m.ipBuckets, now)
 }
 
 func (m *BucketManager) getBucket(collection *BucketCollection, key string) *Bucket {
@@ -125,13 +133,13 @@ func (m *BucketManager) getBucket(collection *BucketCollection, key string) *Buc
 	return val.(*Bucket)
 }
 
-// Check проверяет лимит для ключа в указанной коллекции
+// Check проверяет лимит для ключа в указанной коллекции.
 func (m *BucketManager) Check(collection *BucketCollection, key string, tick Tick) bool {
 	bucket := m.getBucket(collection, key)
 	return bucket.Allow(tick)
 }
 
-// CheckAuth проверяет лимиты для логина, пароля и IP
+// CheckAuth проверяет лимиты для логина, пароля и IP.
 func (m *BucketManager) CheckAuth(login, password, ip string) bool {
 	now := NowTick()
 
@@ -140,46 +148,47 @@ func (m *BucketManager) CheckAuth(login, password, ip string) bool {
 		m.Check(m.ipBuckets, ip, now)
 }
 
-// ResetLogin сбрасывает bucket для логина
+// ResetLogin сбрасывает bucket для логина.
 func (m *BucketManager) ResetLogin(login string) {
 	m.loginBuckets.buckets.Delete(login)
 }
 
-// ResetIP сбрасывает bucket для IP
+// ResetIP сбрасывает bucket для IP.
 func (m *BucketManager) ResetIP(ip string) {
 	m.ipBuckets.buckets.Delete(ip)
 }
 
-// ResetAll сбрасывает bucket'ы для логина и IP
+// ResetAll сбрасывает bucket'ы для логина и IP.
 func (m *BucketManager) ResetAll(login, ip string) {
 	m.ResetLogin(login)
 	m.ResetIP(ip)
 }
 
-// Stats возвращает количество активных bucket'ов по типам
+func dropsInBucket(buckets *sync.Map) int {
+	count0 := 0
+	buckets.Range(func(_, _ interface{}) bool {
+		count0++
+		return true
+	})
+	return count0
+}
+
+// Stats возвращает количество активных bucket'ов по типам.
 func (m *BucketManager) Stats() map[string]int {
 	stats := make(map[string]int)
 
-	count := 0
-	m.loginBuckets.buckets.Range(func(_, _ interface{}) bool {
-		count++
+	stats["login"] = dropsInBucket(m.loginBuckets.buckets)
+	stats["password"] = dropsInBucket(m.passwordBuckets.buckets)
+	stats["ip"] = dropsInBucket(m.ipBuckets.buckets)
+
+	return stats
+}
+
+func (m *BucketManager) BucketStats(buckets *sync.Map) map[string]int {
+	stats := make(map[string]int)
+	buckets.Range(func(key, val interface{}) bool {
+		stats[key.(string)] = val.(*Bucket).drops
 		return true
 	})
-	stats["login"] = count
-
-	count = 0
-	m.passwordBuckets.buckets.Range(func(_, _ interface{}) bool {
-		count++
-		return true
-	})
-	stats["password"] = count
-
-	count = 0
-	m.ipBuckets.buckets.Range(func(_, _ interface{}) bool {
-		count++
-		return true
-	})
-	stats["ip"] = count
-
 	return stats
 }
