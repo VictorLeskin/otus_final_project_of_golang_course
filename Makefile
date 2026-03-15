@@ -15,7 +15,7 @@ install-lint-deps:
 lint: install-lint-deps
 	golangci-lint run ./...
  
-test: lint
+test: 
 	go test -v ./... 
  
 clean: 
