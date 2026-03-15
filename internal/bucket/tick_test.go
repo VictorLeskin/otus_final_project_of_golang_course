@@ -33,5 +33,5 @@ func TestTick_String(t *testing.T) {
 	tick := NewTick(now)
 
 	// Проверяем, что округлилось до секунд (отбросили наносекунды)
-	assert.Equal(t, "15:00:30.500", tick.String())
+	assert.Equal(t, "12:00:30.500", tick.String())
 }

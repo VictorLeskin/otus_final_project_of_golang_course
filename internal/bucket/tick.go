@@ -36,5 +36,5 @@ func (t Tick) Sub(other Tick) int64 {
 
 // String возвращает строковое представление Tick (для отладки).
 func (t Tick) String() string {
-	return t.ToTime().Format("15:04:05.000")
+	return t.ToTime().UTC().Format("15:04:05.000")
 }
