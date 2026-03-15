@@ -2,8 +2,6 @@
 package models
 
 import (
-	"errors"
-	"net"
 	"time"
 )
 
@@ -33,20 +31,5 @@ type IPList struct {
 
 // Validate проверяет корректность записи
 func (il *IPList) Validate() error {
-	if il.Subnet == "" {
-		return ErrEmptySubnet
-	}
-
-	if _, _, err := net.ParseCIDR(il.Subnet); err != nil {
-		return ErrInvalidSubnet
-	}
-
-	// ListType не нужно проверять - bool всегда валидный
-
-	return nil
+	return ValidateIPOrSubnet(il.Subnet)
 }
-
-var (
-	ErrEmptySubnet   = errors.New("subnet cannot be empty")
-	ErrInvalidSubnet = errors.New("invalid subnet format")
-)
