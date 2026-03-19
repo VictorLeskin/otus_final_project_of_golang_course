@@ -1,5 +1,7 @@
 // internal/storage/interface.go
+// interface class to the storage 
 package storage
+
 
 import (
 	"context"
