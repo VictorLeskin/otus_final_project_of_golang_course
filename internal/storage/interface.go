@@ -1,5 +1,5 @@
 // internal/storage/interface.go
-// interface class to the storage #1 
+// interface class to the storage
 package storage
 
 
