@@ -1,11 +1,13 @@
-package postgres
+package storage
 
 import (
     "context"
     "database/sql"
     "fmt"
+    "errors"
+    "net"
     
-    "yourmodule/internal/models"
+    "github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
 )
 
 type PostgresStorage struct {

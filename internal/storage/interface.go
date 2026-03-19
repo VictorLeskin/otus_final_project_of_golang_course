@@ -1,9 +1,11 @@
 // internal/storage/interface.go
+// interface class to the storage
 package storage
+
 
 import (
 	"context"
-	"yourmodule/internal/models"
+	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
 )
 
 type IPListStorage interface {
