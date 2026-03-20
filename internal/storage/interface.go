@@ -32,9 +32,10 @@ type IPListStorage interface {
 }
 
 var (
-	ErrInvalidSubnetDetected = fmt.Errorf("invalid subnet")
-	ErrEventExists           = fmt.Errorf("this event exists")
-	ErrEmptySubnet           = fmt.Errorf("subnet cannot be empty")
-	ErrEmptyIP               = fmt.Errorf("IP cannot be empty")
-	ErrInvalidSubnet         = fmt.Errorf("invalid subnet format")
+	ErrInvalidSubnetDetected  = fmt.Errorf("invalid subnet")
+	ErrInvalidAddressDetected = fmt.Errorf("invalid address")
+	ErrEventExists            = fmt.Errorf("this event exists")
+	ErrEmptySubnet            = fmt.Errorf("subnet cannot be empty")
+	ErrEmptyIP                = fmt.Errorf("IP cannot be empty")
+	ErrInvalidSubnet          = fmt.Errorf("invalid subnet format")
 )
