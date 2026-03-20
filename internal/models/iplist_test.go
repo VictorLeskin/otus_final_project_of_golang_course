@@ -46,3 +46,40 @@ func TestIPList_Validate(t *testing.T) {
 		assert.Equal(t, "invalid IP address or subnet", t0.Validate().Error())
 	}
 }
+
+func TestIPList_AreSame(t *testing.T) {
+	lhv := IPList{
+		Subnet:  "ABCD",
+		IsWhite: Black,
+	}
+
+	rhv := IPList{
+		Subnet:  "ABCD",
+		IsWhite: Black,
+	}
+
+	assert.True(t, lhv.AreSame(&rhv))
+
+	lhv1 := lhv
+	rhv1 := rhv
+
+	lhv1.IsWhite = White
+	assert.False(t, lhv1.AreSame(&rhv1))
+
+	lhv2 := lhv
+	rhv2 := rhv
+
+	lhv2.Subnet = "ABCd"
+	assert.False(t, lhv2.AreSame(&rhv2))
+}
+
+func TestIPList_AreSameSS(t *testing.T) {
+	lhv := IPList{
+		Subnet:  "ABCD",
+		IsWhite: Black,
+	}
+
+	assert.True(t, lhv.AreSameS("ABCD", Black))
+	assert.False(t, lhv.AreSameS("ABCD", White))
+	assert.False(t, lhv.AreSameS("ABCd", Black))
+}
