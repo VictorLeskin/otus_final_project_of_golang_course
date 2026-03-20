@@ -34,7 +34,7 @@ func (ms *MemoryStorage) find(subnet string, isWhite models.ListType) *models.IP
 	return nil
 }
 
-func (ms *MemoryStorage) Add(ctx context.Context, l *models.IPList) error {
+func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
 	//checking
 	if err := l.Validate(); err != nil {
 		return storage.ErrInvalidSubnetDetected
@@ -54,11 +54,13 @@ func (ms *MemoryStorage) Add(ctx context.Context, l *models.IPList) error {
 	default:
 	}
 
-	ms.ipList = append(ms.ipList, l)
+	tmp := new(models.IPList)
+	*tmp = l
+	ms.ipList = append(ms.ipList, tmp)
 	return nil
 }
 
-func (ms *MemoryStorage) Remove(ctx context.Context, l *models.IPList) error {
+func (ms *MemoryStorage) Remove(ctx context.Context, l models.IPList) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -69,12 +71,89 @@ func (ms *MemoryStorage) Remove(ctx context.Context, l *models.IPList) error {
 	}
 
 	for i, ip := range ms.ipList {
-		if ip.AreSame(l) {
+		if ip.AreSame(&l) {
 			ms.ipList = append(ms.ipList[:i], ms.ipList[i+1:]...)
 			return nil
 		}
 	}
 
 	// no such subnet in list
+	return nil
+}
+
+func (ms *MemoryStorage) GetIpList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	res := make([]models.IPList, 0)
+
+	for _, ip := range ms.ipList {
+		if ip.IsWhite == listType {
+			res = append(res, *ip)
+		}
+	}
+
+	return res, nil
+}
+
+func (ms *MemoryStorage) GetAll(ctx context.Context) ([]models.IPList, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	res := make([]models.IPList, 0)
+
+	for _, ip := range ms.ipList {
+		res = append(res, *ip)
+	}
+
+	return res, nil
+}
+
+func (ms *MemoryStorage) Clear(ctx context.Context, listType models.ListType) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	n := 0
+	for _, it := range ms.ipList {
+		if it.IsWhite != listType {
+			ms.ipList[n] = it
+			n++
+		}
+	}
+	ms.ipList = ms.ipList[:n]
+	return nil
+}
+
+//
+
+func (ms *MemoryStorage) ClearAll(ctx context.Context) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	ms.ipList = ms.ipList[:0]
 	return nil
 }
