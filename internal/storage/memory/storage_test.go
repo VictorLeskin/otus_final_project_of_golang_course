@@ -94,3 +94,49 @@ func TestStorage_Add(t *testing.T) {
 		assert.Nil(t, exists, "Event should NOT exist in storage")
 	})
 }
+
+func TestStorage_Remove(t *testing.T) {
+	t1 := &models.IPList{
+		Subnet:  "192.168.1.0/24",
+		IsWhite: models.White,
+	}
+
+	t.Run("empty list", func(t *testing.T) {
+		t0 := New()
+		err := t0.Remove(context.Background(), t1)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(t0.ipList))
+	})
+
+	t.Run("remove only subnet", func(t *testing.T) {
+		t0 := New()
+		t0.Add(context.Background(), t1)
+		assert.Equal(t, 1, len(t0.ipList))
+
+		t2 := &models.IPList{
+			Subnet:  "192.168.1.256/24",
+			IsWhite: models.White,
+		}
+
+		err := t0.Remove(context.Background(), t2)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(t0.ipList))
+
+		err = t0.Remove(context.Background(), t1)
+		assert.Equal(t, 0, len(t0.ipList))
+		assert.NoError(t, err)
+	})
+
+	t.Run("fail: context cancellation", func(t *testing.T) {
+		t0 := New()
+		t0.Add(context.Background(), t1)
+		assert.Equal(t, 1, len(t0.ipList))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := t0.Remove(ctx, t1)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+}

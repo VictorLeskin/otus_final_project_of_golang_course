@@ -57,3 +57,24 @@ func (ms *MemoryStorage) Add(ctx context.Context, l *models.IPList) error {
 	ms.ipList = append(ms.ipList, l)
 	return nil
 }
+
+func (ms *MemoryStorage) Remove(ctx context.Context, l *models.IPList) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	for i, ip := range ms.ipList {
+		if ip.AreSame(l) {
+			ms.ipList = append(ms.ipList[:i], ms.ipList[i+1:]...)
+			return nil
+		}
+	}
+
+	// no such subnet in list
+	return nil
+}
