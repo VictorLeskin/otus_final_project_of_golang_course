@@ -159,6 +159,15 @@ func (ms *MemoryStorage) ClearAll(ctx context.Context) error {
 	return nil
 }
 
+// Contains проверяет принадлежность IP-адреса к указанному списку.
+// Параметры:
+//   - ctx: контекст для отмены операции
+//   - listType: тип списка (white/black)
+//   - address: IP-адрес или CIDR подсеть для проверки
+//
+// Возвращает:
+//   - bool: true если адрес найден в списке, false если нет
+//   - error: ошибка при парсинге address или проблемах с БД
 func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType, address string) (bool, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -182,6 +191,45 @@ func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType,
 			}
 		}
 	}
-
 	return false, nil
+}
+
+// count возвращает количестов subnet даного типа
+// Параметры:
+//   - listType: тип списка (white/black)
+func (ms *MemoryStorage) count(listType models.ListType) int {
+	n := 0
+	for _, ip := range ms.ipList {
+		if ip.IsWhite == listType {
+			n++
+		}
+	}
+	return n
+}
+
+// IsIPAuthorized проверяет IP по white/black спискам.
+// Возвращает true, если IP разрешен:
+//   - не в blacklist и whitelist пуст
+//   - не в blacklist и IP в whitelist если white list не пуст)
+func (ms *MemoryStorage) IsIPAuthorized(ctx context.Context, ip string) (bool, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	resB, errB := ms.Contains(ctx, models.Black, ip)
+	if errB != nil {
+		return false, errB
+	}
+	if resB {
+		return false, nil
+	}
+
+	if ms.count(models.Black) == len(ms.ipList) {
+		return true, nil
+	}
+
+	resW, errW := ms.Contains(ctx, models.White, ip)
+	if errW != nil {
+		return false, errW
+	}
+	return resW, nil
 }

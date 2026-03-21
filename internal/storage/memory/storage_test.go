@@ -383,3 +383,86 @@ func TestStorage_Contains(t *testing.T) {
 	assert.False(t, res0)
 	assert.ErrorIs(t, err0, context.Canceled)
 }
+
+func TestStorage_count(t *testing.T) {
+	t0 := New()
+	t1 := &models.IPList{
+		Subnet:  "191.168.1.0/24",
+		IsWhite: models.White,
+	}
+
+	t2 := &models.IPList{
+		Subnet:  "192.168.1.1/24",
+		IsWhite: models.Black,
+	}
+
+	t3 := &models.IPList{
+		Subnet:  "193.168.1.2/24",
+		IsWhite: models.White,
+	}
+
+	assert.Equal(t, 0, t0.count(models.White))
+	assert.Equal(t, 0, t0.count(models.Black))
+
+	t0.ipList = append(t0.ipList, t1)
+	t0.ipList = append(t0.ipList, t2)
+	t0.ipList = append(t0.ipList, t3)
+
+	assert.Equal(t, 2, t0.count(models.White))
+	assert.Equal(t, 1, t0.count(models.Black))
+}
+
+func TestStorage_IsIPAuthorized(t *testing.T) {
+	t0 := New()
+	t1 := &models.IPList{
+		Subnet:  "191.168.1.0/32",
+		IsWhite: models.White,
+	}
+
+	t2 := &models.IPList{
+		Subnet:  "192.168.1.1/32",
+		IsWhite: models.Black,
+	}
+
+	t3 := &models.IPList{
+		Subnet:  "193.168.1.2/32",
+		IsWhite: models.White,
+	}
+
+	res, err := t0.IsIPAuthorized(context.Background(), "200.200.200.200")
+	assert.True(t, res)
+	assert.NoError(t, err)
+
+	t0.ipList = append(t0.ipList, t2)
+
+	// in the black list
+	res0, err0 := t0.IsIPAuthorized(context.Background(), "192.168.1.1")
+	assert.False(t, res0)
+	assert.NoError(t, err0)
+
+	res1, err1 := t0.IsIPAuthorized(context.Background(), "200.200.200.200")
+	assert.True(t, res1)
+	assert.NoError(t, err1)
+
+	t0.ipList = append(t0.ipList, t1)
+	t0.ipList = append(t0.ipList, t3)
+
+	res2, err2 := t0.IsIPAuthorized(context.Background(), "192.168.1.1")
+	assert.False(t, res2)
+	assert.NoError(t, err2)
+
+	res3, err3 := t0.IsIPAuthorized(context.Background(), "200.200.200.200")
+	assert.False(t, res3)
+	assert.NoError(t, err3)
+
+	res4, err4 := t0.IsIPAuthorized(context.Background(), "193.168.1.2")
+	assert.True(t, res4)
+	assert.NoError(t, err4)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res5, err5 := t0.IsIPAuthorized(ctx, "193.168.1.2")
+	assert.False(t, res5)
+	assert.ErrorIs(t, err5, context.Canceled)
+}
