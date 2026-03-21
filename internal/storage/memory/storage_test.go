@@ -267,6 +267,7 @@ func TestStorage_Clear(t *testing.T) {
 
 	err2 = t0.Clear(context.Background(), models.White)
 	r2, _ = t0.GetAll(context.Background())
+	assert.Nil(t, err2)
 	assert.Equal(t, 0, len(r2))
 }
 
