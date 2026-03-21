@@ -271,7 +271,6 @@ func TestStorage_Clear(t *testing.T) {
 }
 
 func TestStorage_ClearAll(t *testing.T) {
-
 	{
 		t0 := New()
 		err1 := t0.Clear(context.Background(), models.Black)
@@ -331,4 +330,56 @@ func TestStorage_ClearAll(t *testing.T) {
 		assert.ErrorIs(t, err2, context.Canceled)
 		assert.Equal(t, 3, len(t0.ipList))
 	}
+}
+func TestStorage_Contains(t *testing.T) {
+	t0 := New()
+	t1 := &models.IPList{
+		Subnet:  "191.168.1.0/24",
+		IsWhite: models.White,
+	}
+
+	t2 := &models.IPList{
+		Subnet:  "192.168.1.1/24",
+		IsWhite: models.Black,
+	}
+
+	t3 := &models.IPList{
+		Subnet:  "193.168.1.2/24",
+		IsWhite: models.White,
+	}
+
+	t0.ipList = append(t0.ipList, t1)
+	t0.ipList = append(t0.ipList, t2)
+	t0.ipList = append(t0.ipList, t3)
+
+	res0, err0 := t0.Contains(context.Background(), models.White, "191.168.1.111")
+	assert.True(t, res0)
+	assert.NoError(t, err0)
+
+	res1, err1 := t0.Contains(context.Background(), models.Black, "192.168.1.111")
+	assert.True(t, res1)
+	assert.NoError(t, err1)
+
+	res2, err2 := t0.Contains(context.Background(), models.White, "193.168.1.111")
+	assert.True(t, res2)
+	assert.NoError(t, err2)
+
+	resF, errF := t0.Contains(context.Background(), models.White, "194.168.1.111")
+	assert.False(t, resF)
+	assert.NoError(t, errF)
+
+	resI, errI := t0.Contains(context.Background(), models.White, "invalid")
+	assert.False(t, resI)
+	assert.ErrorIs(t, errI, storage.ErrInvalidAddressDetected)
+
+	res0, err0 = t0.Contains(context.Background(), models.White, "191.168.1.111")
+	assert.True(t, res0)
+	assert.NoError(t, err0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res0, err0 = t0.Contains(ctx, models.White, "191.168.1.111")
+	assert.False(t, res0)
+	assert.ErrorIs(t, err0, context.Canceled)
 }

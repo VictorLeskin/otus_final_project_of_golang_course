@@ -177,9 +177,7 @@ func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType,
 
 	for _, ip := range ms.ipList {
 		if ip.IsWhite == listType {
-			_, subnet, _ := net.ParseCIDR(ip.Subnet)
-
-			if subnet.Contains(ipAddr) {
+			if ip.Contains(ipAddr) {
 				return true, nil
 			}
 		}

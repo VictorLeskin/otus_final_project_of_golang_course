@@ -2,6 +2,8 @@
 package models
 
 import (
+	"fmt"
+	"net"
 	"time"
 )
 
@@ -42,4 +44,19 @@ func (lhv *IPList) AreSameS(subnet string, isWhite ListType) bool {
 // AreSame проверяет что записи совпадают
 func (lhv *IPList) AreSame(rhv *IPList) bool {
 	return lhv.AreSameS(rhv.Subnet, rhv.IsWhite)
+}
+
+func (ip *IPList) Contains(ipAddr net.IP) bool {
+	_, subnet, _ := net.ParseCIDR(ip.Subnet)
+
+	return subnet.Contains(ipAddr)
+}
+
+func (ip *IPList) ContainsAddress(address string) (bool, error) {
+	ipAddr := net.ParseIP(address)
+	if ipAddr == nil {
+		return false, fmt.Errorf("wrong ip address")
+	}
+
+	return ip.Contains(ipAddr), nil
 }
