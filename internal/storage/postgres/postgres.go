@@ -3,14 +3,74 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
+
+	"github.com/lib/pq" // драйвер PostgreSQL
 )
 
+type Config struct {
+	Host     string
+	Port     int
+	Database string
+	Username string
+	Password string
+	SSLMode  string
+}
+
 type PostgresStorage struct {
-	db *sql.DB
+	cfg Config
+	db  *sql.DB
+}
+
+func New(cfg Config) *PostgresStorage {
+	return &PostgresStorage{
+		cfg: cfg,
+	}
+}
+
+func (s *PostgresStorage) DSN() string {
+	c := s.cfg
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.Host, c.Port, c.Username, c.Password, c.Database, c.SSLMode,
+	)
+}
+
+func (s *PostgresStorage) Connect(ctx context.Context) error {
+	db, err := sql.Open("postgres", s.DSN())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// check the connection
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	s.db = db
+
+	return nil
+}
+
+func (s *PostgresStorage) Close(_ context.Context) error {
+	return s.db.Close()
+}
+
+// Вспомогательная функция для определения duplicate key.
+func isDuplicateError(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		if pqErr.Code == "23505" { // PostgrePostgres error code for duplicating "23505".
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *PostgresStorage) Add(ctx context.Context, listType models.ListType, subnet string) error {
