@@ -1,11 +1,10 @@
-package storage
+package postgresstorage
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"net"
 
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
 
@@ -16,8 +15,6 @@ type Config struct {
 	Host     string
 	Port     int
 	Database string
-	Username string
-	Password string
 	SSLMode  string
 }
 
@@ -35,8 +32,8 @@ func New(cfg Config) *PostgresStorage {
 func (s *PostgresStorage) DSN() string {
 	c := s.cfg
 	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Host, c.Port, c.Username, c.Password, c.Database, c.SSLMode,
+		"host=%s port=%d dbname=%s sslmode=%s",
+		c.Host, c.Port, c.Database, c.SSLMode,
 	)
 }
 
@@ -73,23 +70,21 @@ func isDuplicateError(err error) bool {
 	return false
 }
 
-func (s *PostgresStorage) Add(ctx context.Context, listType models.ListType, subnet string) error {
-	// Валидация CIDR
-	if subnet == "" {
-		return ErrEmptySubnet
-	}
-	if _, _, err := net.ParseCIDR(subnet); err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidSubnet, err)
+func (s *PostgresStorage) Add(ctx context.Context, l models.IPList) error {
+	//checking
+	if err := l.Validate(); err != nil {
+		return fmt.Errorf("invalid IP list entry: %w", err)
 	}
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO ip_lists (list_type, subnet) VALUES ($1, $2)
-         ON CONFLICT (list_type, subnet) DO NOTHING`,
-		listType, subnet,
+		`INSERT INTO ip_lists (subnet, list_type) VALUES ($1, $2)
+         ON CONFLICT (subnet, list_type) DO NOTHING`,
+		l.Subnet, l.IsWhite,
 	)
 	return err
 }
 
+/*
 func (s *PostgresStorage) Remove(ctx context.Context, listType models.ListType, subnet string) error {
 	if subnet == "" {
 		return ErrEmptySubnet
@@ -110,7 +105,7 @@ func (s *PostgresStorage) Contains(ctx context.Context, listType models.ListType
 	var exists bool
 	err := s.db.QueryRowContext(ctx,
 		`SELECT EXISTS(
-            SELECT 1 FROM ip_lists 
+            SELECT 1 FROM ip_lists
             WHERE list_type = $1 AND $2::inet <<= subnet
         )`,
 		listType, ip,
@@ -151,3 +146,4 @@ func (s *PostgresStorage) Clear(ctx context.Context, listType models.ListType) e
 func (s *PostgresStorage) Close() error {
 	return s.db.Close()
 }
+*/

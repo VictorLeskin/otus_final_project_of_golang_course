@@ -16,17 +16,22 @@ type Config struct {
 type IPListStorage interface {
 	// Add добавляет подсеть в указанный список
 	Add(ctx context.Context, l models.IPList) error
+
 	// Remove удаляет подсеть из указанного списка
 	Remove(ctx context.Context, l models.IPList) error
 
 	// Contains проверяет, содержится ли IP в указанном списке
-	Contains(ctx context.Context, listType models.ListType, ip string) (bool, error)
+	Contains(ctx context.Context, listType models.ListType, address string) (bool, error)
 
 	GetIpList(ctx context.Context, listType models.ListType) ([]models.IPList, error)
 	GetAll(ctx context.Context) ([]models.IPList, error)
 
 	// Clear очищает указанный список (опционально)
 	Clear(ctx context.Context, listType models.ListType) error
+	ClearAll(ctx context.Context) error
+
+	IsIPAuthorized(ctx context.Context, ip string) (bool, error)
+
 	// Close закрывает соединение
 	Close() error
 }

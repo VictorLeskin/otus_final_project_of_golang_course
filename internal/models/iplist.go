@@ -25,7 +25,7 @@ func (lt ListType) String() string {
 
 // IPList представляет запись в списке IP-адресов
 type IPList struct {
-	ID        string
+	ID        int64
 	Subnet    string   // "192.168.1.0/24"
 	IsWhite   ListType // true=white, false=black
 	CreatedAt time.Time

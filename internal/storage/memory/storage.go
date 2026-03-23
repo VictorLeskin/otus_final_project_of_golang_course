@@ -2,6 +2,7 @@ package memorystorage
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 
@@ -38,7 +39,7 @@ func (ms *MemoryStorage) find(subnet string, isWhite models.ListType) *models.IP
 func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
 	//checking
 	if err := l.Validate(); err != nil {
-		return storage.ErrInvalidSubnetDetected
+		return fmt.Errorf("invalid IP list entry: %w", err)
 	}
 
 	// subnet exist
