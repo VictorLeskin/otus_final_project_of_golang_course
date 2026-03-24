@@ -7,13 +7,16 @@ import (
 	"net"
 
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
-	// драйвер PostgreSQL
+
+	_ "github.com/lib/pq" // драйвер PostgreSQL
 )
 
 type Config struct {
 	Host     string
 	Port     int
 	Database string
+	User     string
+	Password string
 	SSLMode  string
 }
 
@@ -31,8 +34,8 @@ func New(cfg Config) *PostgresStorage {
 func (s *PostgresStorage) DSN() string {
 	c := s.cfg
 	return fmt.Sprintf(
-		"host=%s port=%d dbname=%s sslmode=%s",
-		c.Host, c.Port, c.Database, c.SSLMode,
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.Host, c.Port, c.User, c.Password, c.Database, c.SSLMode,
 	)
 }
 
