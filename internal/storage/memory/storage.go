@@ -36,6 +36,10 @@ func (ms *MemoryStorage) find(subnet string, isWhite models.ListType) *models.IP
 	return nil
 }
 
+func (_ *MemoryStorage) Close(_ context.Context) error {
+	return nil
+}
+
 func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
 	//checking
 	if err := l.Validate(); err != nil {
@@ -63,6 +67,10 @@ func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
 }
 
 func (ms *MemoryStorage) Remove(ctx context.Context, l models.IPList) error {
+	if err := l.Validate(); err != nil {
+		return fmt.Errorf("invalid IP list entry: %w", err)
+	}
+
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -170,6 +178,12 @@ func (ms *MemoryStorage) ClearAll(ctx context.Context) error {
 //   - bool: true если адрес найден в списке, false если нет
 //   - error: ошибка при парсинге address или проблемах с БД
 func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType, address string) (bool, error) {
+
+	// Проверяем IP на валидность
+	ipAddr := net.ParseIP(address)
+	if ipAddr == nil {
+		return false, storage.ErrInvalidAddressDetected
+	}
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -177,12 +191,6 @@ func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType,
 	case <-ctx.Done():
 		return false, ctx.Err()
 	default:
-	}
-
-	// Проверяем IP на валидность
-	ipAddr := net.ParseIP(address)
-	if ipAddr == nil {
-		return false, storage.ErrInvalidAddressDetected
 	}
 
 	for _, ip := range ms.ipList {

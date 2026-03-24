@@ -44,7 +44,7 @@ func TestStorage_find(t *testing.T) {
 
 func TestStorage_Add(t *testing.T) {
 	t1 := models.IPList{
-		ID:      "id",
+		ID:      123456,
 		Subnet:  "192.168.1.0/24",
 		IsWhite: models.White,
 	}
@@ -55,7 +55,7 @@ func TestStorage_Add(t *testing.T) {
 		assert.NoError(t, err)
 
 		savedEvent := t0.find("192.168.1.0/24", models.White)
-		assert.Equal(t, "id", savedEvent.ID)
+		assert.Equal(t, int64(123456), savedEvent.ID)
 	})
 
 	t.Run("invalid subnet", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestStorage_Add(t *testing.T) {
 
 		err := t0.Add(context.Background(), t2)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, storage.ErrInvalidSubnetDetected)
+		assert.ErrorContains(t, err, "invalid IP address or subnet")
 	})
 
 	t.Run("nothing to do: duplicate event", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestStorage_Remove(t *testing.T) {
 		assert.Equal(t, 1, len(t0.ipList))
 
 		t2 := models.IPList{
-			Subnet:  "192.168.1.256/24",
+			Subnet:  "192.168.1.255/24",
 			IsWhite: models.White,
 		}
 
@@ -125,6 +125,20 @@ func TestStorage_Remove(t *testing.T) {
 		err = t0.Remove(context.Background(), t1)
 		assert.Equal(t, 0, len(t0.ipList))
 		assert.NoError(t, err)
+	})
+
+	t.Run("wrong input address", func(t *testing.T) {
+		t0 := New()
+		t0.Add(context.Background(), t1)
+		assert.Equal(t, 1, len(t0.ipList))
+
+		t2 := models.IPList{
+			Subnet:  "AAAAA.168.1.256/24",
+			IsWhite: models.White,
+		}
+
+		err := t0.Remove(context.Background(), t2)
+		assert.Error(t, err)
 	})
 
 	t.Run("fail: context cancellation", func(t *testing.T) {
