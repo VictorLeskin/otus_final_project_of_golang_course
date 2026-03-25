@@ -57,6 +57,13 @@ func getSubnetsAsMap(items []models.IPList) map[string]bool {
 	return subnets
 }
 
+func (s *PostgresStorage) createIPList(Subnet string, IsWhite models.ListType) models.IPList {
+	return models.IPList{
+		Subnet:  subnet30,
+		IsWhite: models.White,
+	}
+}
+
 func TestPostgresStorage_Add(t *testing.T) {
 	// Пропускаем если тесты запускаются в коротком режиме
 	if testing.Short() {
@@ -183,4 +190,54 @@ func cleanupTestData(t *testing.T, store *PostgresStorage) {
 	_, err := store.db.ExecContext(ctx,
 		"DELETE FROM ip_lists WHERE subnet LIKE '173.194.221.%'")
 	require.NoError(t, err, "Failed to clean test data")
+}
+
+func TestPostgresStorage_Remove(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+		// Добавляем первую подсеть в белый список
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
+		require.NoError(t, err, "Failed to add subnet %s", subnet30)
+		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		require.NoError(t, err, "Failed to add subnet %s", subnet30)
+
+		items, err := store.GetAll(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet30: bool(models.White),
+			subnet30: bool(models.Black),
+		})
+
+		err = store.Remove(ctx, store.createIPList("Invalid", models.White))
+		assert.ErrorContains(t, err, "invalid IP address or subnet")
+
+		err = store.Remove(ctx, store.createIPList(subnet30, models.White))
+		items, err = store.GetAll(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet30: bool(models.Black),
+		})
+
+		err = store.Remove(ctx, store.createIPList(subnet31, models.Black))
+		items, err = store.GetAll(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{})
+	})
 }
