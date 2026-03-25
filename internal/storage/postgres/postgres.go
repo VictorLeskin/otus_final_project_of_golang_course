@@ -109,7 +109,7 @@ func (s *PostgresStorage) GetIpList(ctx context.Context, listType models.ListTyp
 		}
 		result = append(result, ip)
 	}
-	return result, rows.Err()
+	return result, nil
 }
 
 // GetAll возвращает все подсети из обоих списков
