@@ -93,8 +93,23 @@ func TestPostgresStorage_Add(t *testing.T) {
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
 			subnet30: bool(models.White),
 		})
-	})
 
+		// try to add an invalid subnet
+		ipList2 := models.IPList{
+			Subnet:  "Invalid",
+			IsWhite: models.White,
+		}
+		err = store.Add(ctx, ipList2)
+		require.Error(t, err, "Failed to add subnet %s", subnet30)
+
+		// Получаем все записи
+		items, err = store.GetAll(ctx)
+		require.NoError(t, err)
+
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet30: bool(models.White),
+		})
+	})
 }
 
 func TestPostgresStorage_AddAndGetAll(t *testing.T) {
