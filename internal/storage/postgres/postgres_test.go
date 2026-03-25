@@ -9,12 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPostgresStorage_AddAndGetAll(t *testing.T) {
-	// Пропускаем если тесты запускаются в коротком режиме
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
+func createStore(t *testing.T) *PostgresStorage {
 	// Конфигурация для тестов
 	cfg := Config{
 		Host:     "localhost",
@@ -28,16 +23,16 @@ func TestPostgresStorage_AddAndGetAll(t *testing.T) {
 	// Создаем хранилище
 	store := New(cfg)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Подключаемся к БД
-	err := store.Connect(ctx)
+	err := store.Connect(context.Background())
 	require.NoError(t, err)
-	defer store.Close(ctx)
 
+	return store
+}
+
+func createDB(t *testing.T, ctx context.Context, store *PostgresStorage) {
 	// Создаем БД ip_lists
-	_, err = store.db.ExecContext(ctx, `
+	_, err := store.db.ExecContext(ctx, `
         CREATE TABLE IF NOT EXISTS ip_lists (
             id BIGSERIAL PRIMARY KEY,
             subnet TEXT NOT NULL,
@@ -47,6 +42,23 @@ func TestPostgresStorage_AddAndGetAll(t *testing.T) {
         )
     `)
 	require.NoError(t, err, "Failed to create table")
+}
+
+func TestPostgresStorage_AddAndGetAll(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
 
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
