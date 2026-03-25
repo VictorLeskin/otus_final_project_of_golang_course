@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Подсети для теста they are address of google.com
+var subnet30 string = "173.194.221.138/30"
+var subnet31 string = "173.194.221.138/31"
+
 func createStore(t *testing.T) *PostgresStorage {
 	// Конфигурация для тестов
 	cfg := Config{
@@ -42,6 +46,55 @@ func createDB(t *testing.T, ctx context.Context, store *PostgresStorage) {
         )
     `)
 	require.NoError(t, err, "Failed to create table")
+}
+
+// convert to subnets mask for comparing
+func getSubnetsAsMap(items []models.IPList) map[string]bool {
+	subnets := make(map[string]bool)
+	for _, item := range items {
+		subnets[item.Subnet] = bool(item.IsWhite)
+	}
+	return subnets
+}
+
+func TestPostgresStorage_Add(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add and get one subnet ", func(t *testing.T) {
+		// Подсети для теста
+		// Добавляем первую подсеть в белый список
+		ipList1 := models.IPList{
+			Subnet:  subnet30,
+			IsWhite: models.White,
+		}
+		err := store.Add(ctx, ipList1)
+		require.NoError(t, err, "Failed to add subnet %s", subnet30)
+
+		// Получаем все записи
+		items, err := store.GetAll(ctx)
+		require.NoError(t, err)
+
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet30: bool(models.White),
+		})
+	})
+
 }
 
 func TestPostgresStorage_AddAndGetAll(t *testing.T) {
