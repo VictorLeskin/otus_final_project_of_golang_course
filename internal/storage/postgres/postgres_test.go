@@ -241,3 +241,199 @@ func TestPostgresStorage_Remove(t *testing.T) {
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{})
 	})
 }
+
+func TestPostgresStorage_GetIpList(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+		// Добавляем первую подсеть в белый список
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
+		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+
+		items, err := store.GetIpList(ctx, models.White)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet30:             bool(models.White),
+			"173.194.221.138/31": bool(models.White),
+		})
+
+		items, err = store.GetIpList(ctx, models.Black)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet31:             bool(models.Black),
+			"173.194.221.138/31": bool(models.White),
+		})
+	})
+}
+
+func TestPostgresStorage_Clear(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+		// Добавляем первую подсеть в белый список
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
+		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+
+		err = store.Clear(ctx, models.White)
+
+		items, err := store.GetAll(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
+			subnet31: bool(models.Black),
+		})
+	})
+}
+
+func TestPostgresStorage_ClearAll(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+		// Добавляем первую подсеть в белый список
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
+		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+
+		err = store.ClearAll(ctx)
+
+		items, err := store.GetAll(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{})
+	})
+}
+
+func TestPostgresStorage_Contains(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+		// Добавляем первую подсеть в белый список
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
+		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+
+		res, err := store.Contains(ctx, models.White, "Invalid")
+		assert.ErrorContains(t, err, "invalid IP address or subnet")
+		assert.False(t, res)
+
+		res, err = store.Contains(ctx, models.White, subnet30)
+		require.NoError(t, err)
+		assert.True(t, res)
+		res, err = store.Contains(ctx, models.Black, subnet30)
+		require.NoError(t, err)
+		assert.False(t, res)
+		res, err = store.Contains(ctx, models.Black, subnet31)
+		require.NoError(t, err)
+		assert.True(t, res)
+	})
+}
+
+func TestPostgresStorage_IsIPAuthorized(t *testing.T) {
+	// Пропускаем если тесты запускаются в коротком режиме
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Создаем хранилище и подключаемся к БД
+	store := createStore(t)
+	defer store.Close(ctx)
+
+	// Создаем БД ip_lists
+	createDB(t, ctx, store)
+
+	// Очищаем тестовые данные перед тестом
+	cleanupTestData(t, store)
+
+	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+		// Добавляем первую подсеть в белый список
+		err := store.Add(ctx, store.createIPList("173.194.221.0/24", models.White))
+		err = store.Add(ctx, store.createIPList("174.194.221.0/24", models.Black))
+
+		res, err := store.IsIPAuthorized(ctx, "Invalid")
+		assert.ErrorContains(t, err, "invalid IP address or subnet")
+		assert.False(t, res)
+
+		res, err = store.IsIPAuthorized(ctx, "173.194.221.1")
+		require.NoError(t, err)
+		assert.True(t, res)
+		res, err = store.IsIPAuthorized(ctx, "174.194.221.1")
+		require.NoError(t, err)
+		assert.False(t, res)
+
+		res, err = store.IsIPAuthorized(ctx, "200.200.200.200")
+		require.NoError(t, err)
+		assert.False(t, res)
+
+		store.Clear(ctx, models.White)
+		res, err = store.IsIPAuthorized(ctx, "200.200.200.200")
+		require.NoError(t, err)
+		assert.True(t, res)
+	})
+}
