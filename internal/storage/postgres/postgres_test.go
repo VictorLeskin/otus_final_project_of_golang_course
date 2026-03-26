@@ -57,10 +57,10 @@ func getSubnetsAsMap(items []models.IPList) map[string]bool {
 	return subnets
 }
 
-func (s *PostgresStorage) createIPList(Subnet string, IsWhite models.ListType) models.IPList {
+func (s *PostgresStorage) createIPList(s0 string, c models.ListType) models.IPList {
 	return models.IPList{
-		Subnet:  subnet30,
-		IsWhite: models.White,
+		Subnet:  s0,
+		IsWhite: c,
 	}
 }
 
@@ -83,14 +83,10 @@ func TestPostgresStorage_Add(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add and get one subnet ", func(t *testing.T) {
+	t.Run("Add and get one subnet", func(t *testing.T) {
 		// Подсети для теста
 		// Добавляем первую подсеть в белый список
-		ipList1 := models.IPList{
-			Subnet:  subnet30,
-			IsWhite: models.White,
-		}
-		err := store.Add(ctx, ipList1)
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
 		require.NoError(t, err, "Failed to add subnet %s", subnet30)
 
 		// Получаем все записи
@@ -102,17 +98,12 @@ func TestPostgresStorage_Add(t *testing.T) {
 		})
 
 		// try to add an invalid subnet
-		ipList2 := models.IPList{
-			Subnet:  "Invalid",
-			IsWhite: models.White,
-		}
-		err = store.Add(ctx, ipList2)
+		err = store.Add(ctx, store.createIPList("invalid", models.White))
 		require.Error(t, err, "Failed to add subnet %s", subnet30)
 
 		// Получаем все записи
 		items, err = store.GetAll(ctx)
 		require.NoError(t, err)
-
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
 			subnet30: bool(models.White),
 		})
@@ -138,25 +129,17 @@ func TestPostgresStorage_AddAndGetAll(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
+	items, err := store.GetAll(ctx)
+	require.NoError(t, err)
+	require.Len(t, items, 0)
+
 	t.Run("Add and GetAll", func(t *testing.T) {
 		// Подсети для теста
-		subnet30 := "173.194.221.138/30"
-		subnet31 := "173.194.221.138/31"
-
-		// Добавляем первую подсеть в белый список
-		ipList1 := models.IPList{
-			Subnet:  subnet30,
-			IsWhite: models.White,
-		}
-		err := store.Add(ctx, ipList1)
+		err := store.Add(ctx, store.createIPList(subnet30, models.White))
 		require.NoError(t, err, "Failed to add subnet %s", subnet30)
 
 		// Добавляем вторую подсеть в белый список
-		ipList2 := models.IPList{
-			Subnet:  subnet31,
-			IsWhite: models.Black,
-		}
-		err = store.Add(ctx, ipList2)
+		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
 		require.NoError(t, err, "Failed to add subnet %s", subnet31)
 
 		// Получаем все записи
@@ -165,19 +148,10 @@ func TestPostgresStorage_AddAndGetAll(t *testing.T) {
 
 		// Проверяем количество
 		require.Len(t, items, 2, "Expected 2 items")
-
-		// Проверяем содержимое (порядок не важен)
-		subnets := make(map[string]bool)
-		for _, item := range items {
-			subnets[item.Subnet] = bool(item.IsWhite)
-		}
-
-		shouldBe := map[string]bool{
+		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
 			subnet30: bool(models.White),
 			subnet31: bool(models.Black),
-		}
-
-		assert.Equal(t, shouldBe, subnets, "List should be equal")
+		})
 	})
 }
 
@@ -188,7 +162,7 @@ func cleanupTestData(t *testing.T, store *PostgresStorage) {
 
 	// Удаляем тестовые подсети
 	_, err := store.db.ExecContext(ctx,
-		"DELETE FROM ip_lists WHERE subnet LIKE '173.194.221.%'")
+		"DELETE FROM ip_lists WHERE subnet LIKE '%'")
 	require.NoError(t, err, "Failed to clean test data")
 }
 
@@ -211,31 +185,33 @@ func TestPostgresStorage_Remove(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+	t.Run("Add two subnets and remove both", func(t *testing.T) {
 		// Добавляем первую подсеть в белый список
 		err := store.Add(ctx, store.createIPList(subnet30, models.White))
 		require.NoError(t, err, "Failed to add subnet %s", subnet30)
 		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
-		require.NoError(t, err, "Failed to add subnet %s", subnet30)
+		require.NoError(t, err, "Failed to add subnet %s", subnet31)
 
 		items, err := store.GetAll(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
 			subnet30: bool(models.White),
-			subnet30: bool(models.Black),
+			subnet31: bool(models.Black),
 		})
 
 		err = store.Remove(ctx, store.createIPList("Invalid", models.White))
 		assert.ErrorContains(t, err, "invalid IP address or subnet")
 
 		err = store.Remove(ctx, store.createIPList(subnet30, models.White))
+		require.NoError(t, err)
 		items, err = store.GetAll(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
-			subnet30: bool(models.Black),
+			subnet31: bool(models.Black),
 		})
 
 		err = store.Remove(ctx, store.createIPList(subnet31, models.Black))
+		require.NoError(t, err)
 		items, err = store.GetAll(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{})
@@ -261,11 +237,11 @@ func TestPostgresStorage_GetIpList(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+	t.Run("Add 3 subnets and get white/black lists", func(t *testing.T) {
 		// Добавляем первую подсеть в белый список
-		err := store.Add(ctx, store.createIPList(subnet30, models.White))
-		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
-		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+		_ = store.Add(ctx, store.createIPList(subnet30, models.White))
+		_ = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		_ = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
 
 		items, err := store.GetIpList(ctx, models.White)
 		require.NoError(t, err)
@@ -302,13 +278,14 @@ func TestPostgresStorage_Clear(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+	t.Run("Add 3 subnets and clear white/black lists", func(t *testing.T) {
 		// Добавляем первую подсеть в белый список
-		err := store.Add(ctx, store.createIPList(subnet30, models.White))
-		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
-		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+		_ = store.Add(ctx, store.createIPList(subnet30, models.White))
+		_ = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		_ = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
 
-		err = store.Clear(ctx, models.White)
+		err := store.Clear(ctx, models.White)
+		require.NoError(t, err)
 
 		items, err := store.GetAll(ctx)
 		require.NoError(t, err)
@@ -337,13 +314,14 @@ func TestPostgresStorage_ClearAll(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+	t.Run("Add 3 subnets and clear both lists", func(t *testing.T) {
 		// Добавляем первую подсеть в белый список
-		err := store.Add(ctx, store.createIPList(subnet30, models.White))
-		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
-		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+		_ = store.Add(ctx, store.createIPList(subnet30, models.White))
+		_ = store.Add(ctx, store.createIPList(subnet31, models.Black))
+		_ = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
 
-		err = store.ClearAll(ctx)
+		err := store.ClearAll(ctx)
+		require.NoError(t, err)
 
 		items, err := store.GetAll(ctx)
 		require.NoError(t, err)
@@ -370,23 +348,23 @@ func TestPostgresStorage_Contains(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+	t.Run("Add 3 subnets and check is a address in a list ", func(t *testing.T) {
 		// Добавляем первую подсеть в белый список
-		err := store.Add(ctx, store.createIPList(subnet30, models.White))
-		err = store.Add(ctx, store.createIPList(subnet31, models.Black))
-		err = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
+		_ = store.Add(ctx, store.createIPList("173.194.221.138/24", models.White))
+		_ = store.Add(ctx, store.createIPList("174.194.221.138/24", models.Black))
+		_ = store.Add(ctx, store.createIPList("173.194.221.138/16", models.White))
 
 		res, err := store.Contains(ctx, models.White, "Invalid")
-		assert.ErrorContains(t, err, "invalid IP address or subnet")
+		assert.ErrorContains(t, err, "invalid IP address")
 		assert.False(t, res)
 
-		res, err = store.Contains(ctx, models.White, subnet30)
+		res, err = store.Contains(ctx, models.White, "173.194.221.138")
 		require.NoError(t, err)
 		assert.True(t, res)
-		res, err = store.Contains(ctx, models.Black, subnet30)
+		res, err = store.Contains(ctx, models.Black, "173.194.221.138")
 		require.NoError(t, err)
 		assert.False(t, res)
-		res, err = store.Contains(ctx, models.Black, subnet31)
+		res, err = store.Contains(ctx, models.Black, "174.194.221.255")
 		require.NoError(t, err)
 		assert.True(t, res)
 	})
@@ -411,13 +389,13 @@ func TestPostgresStorage_IsIPAuthorized(t *testing.T) {
 	// Очищаем тестовые данные перед тестом
 	cleanupTestData(t, store)
 
-	t.Run("Add tow subnets and remove both ", func(t *testing.T) {
+	t.Run("Add 2 subnets and authorise ip-address ", func(t *testing.T) {
 		// Добавляем первую подсеть в белый список
-		err := store.Add(ctx, store.createIPList("173.194.221.0/24", models.White))
-		err = store.Add(ctx, store.createIPList("174.194.221.0/24", models.Black))
+		_ = store.Add(ctx, store.createIPList("173.194.221.0/24", models.White))
+		_ = store.Add(ctx, store.createIPList("174.194.221.0/24", models.Black))
 
 		res, err := store.IsIPAuthorized(ctx, "Invalid")
-		assert.ErrorContains(t, err, "invalid IP address or subnet")
+		assert.ErrorContains(t, err, "invalid IP address")
 		assert.False(t, res)
 
 		res, err = store.IsIPAuthorized(ctx, "173.194.221.1")
