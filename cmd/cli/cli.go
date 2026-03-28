@@ -18,6 +18,11 @@ type CLI struct {
 	server string
 }
 
+type CheckResult struct {
+	Result bool   `json:"result"`
+	Error  string `json:"error,omitempty"`
+}
+
 func NewCLI(args []string) *CLI {
 	return &CLI{
 		args:   args,
@@ -263,7 +268,7 @@ func (c *CLI) whitelistList() int {
 
 func (c *CLI) parseCheckCommand() (int, *string, *string, *string) {
 	if len(c.args) != 6 {
-		fmt.Fprintf(c.stderr, "Usage: cli check --login <login> --password <password> --ip <ip>\n")
+		fmt.Fprintln(c.stderr, "Usage: cli check --login <login> --password <password> --ip <ip>")
 		return 1, nil, nil, nil
 	}
 
@@ -311,13 +316,18 @@ func (c *CLI) runCheck() int {
 		return 1
 	}
 
-	var result map[string]bool
+	var result CheckResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		fmt.Fprintf(c.stderr, "Error parsing response: %v\n", err)
 		return 1
 	}
 
-	if result["ok"] {
+	if result.Error != "" {
+		fmt.Fprintf(c.stderr, "%s\n", result.Error)
+		return 1
+	}
+
+	if result.Result {
 		fmt.Fprintln(c.stdout, "OK: allowed")
 		return 0
 	} else {

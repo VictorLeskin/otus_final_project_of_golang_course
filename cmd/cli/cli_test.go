@@ -686,3 +686,132 @@ func TestCLI_parseCheckCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestCLI_runCheck(t *testing.T) {
+	tests := []struct {
+		name                  string
+		listOnServer          []string
+		checkResult           bool
+		checkError            string
+		generatedJsonOnServer string
+		ServerStatusCode      int
+		args                  []string
+		expectedCode          int
+		expectedOutput        string
+		expectedError         string
+		emulateServerError    bool
+	}{
+		{
+			name:               "successful",
+			args:               []string{"--login", "me", "--password", "qwerty", "--ip", "200.201.202.203"},
+			checkResult:        true,
+			checkError:         "",
+			ServerStatusCode:   http.StatusOK,
+			expectedCode:       0,
+			expectedOutput:     "OK: allowed\n",
+			expectedError:      "",
+			emulateServerError: false,
+		},
+		{
+			name:               "disabled",
+			args:               []string{"--login", "me", "--password", "qwerty", "--ip", "200.201.202.203"},
+			checkResult:        false,
+			checkError:         "",
+			ServerStatusCode:   http.StatusOK,
+			expectedCode:       1,
+			expectedOutput:     "DENIED: brute-force detected\n",
+			expectedError:      "",
+			emulateServerError: false,
+		},
+		{
+			name:               "error in intput parameters",
+			args:               []string{"--login", "me", "--password", "qwerty", "--ip", "ABCD.201.202.203"},
+			checkResult:        false,
+			checkError:         "invalid ip addresss",
+			ServerStatusCode:   http.StatusOK,
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "invalid ip addresss",
+			emulateServerError: false,
+		},
+		{
+			name:                  "error in intput parameters",
+			args:                  []string{"--login", "me", "--password", "qwerty", "--ip", "ABCD.201.202.203"},
+			checkResult:           false,
+			checkError:            "invalid ip addresss",
+			generatedJsonOnServer: "{invalid json}",
+			ServerStatusCode:      http.StatusOK,
+			expectedCode:          1,
+			expectedOutput:        "",
+			expectedError:         "Error parsing response:",
+			emulateServerError:    false,
+		},
+		{
+			name:               "server error",
+			args:               []string{"--login", "me", "--password", "qwerty", "--ip", "200.201.202.203"},
+			checkResult:        true,
+			checkError:         "",
+			ServerStatusCode:   http.StatusInternalServerError,
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Error: Post",
+			emulateServerError: true,
+		},
+		{
+			name:               "wrong input",
+			args:               []string{"--login1"},
+			checkResult:        true,
+			checkError:         "",
+			ServerStatusCode:   http.StatusOK,
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Usage: cli check --login <login> --password <password> --ip <ip>\n",
+			emulateServerError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.ServerStatusCode)
+				if tt.generatedJsonOnServer == "" {
+					if tt.checkError != "" {
+						response := CheckResult{
+							Result: tt.checkResult,
+							Error:  tt.checkError,
+						}
+						json.NewEncoder(w).Encode(response)
+					} else {
+						response := map[string]bool{
+							"result": tt.checkResult,
+						}
+						json.NewEncoder(w).Encode(response)
+					}
+				} else {
+					w.Write([]byte(tt.generatedJsonOnServer))
+				}
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			if tt.emulateServerError {
+				server.Close()
+			}
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.runCheck()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
