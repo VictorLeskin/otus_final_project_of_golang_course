@@ -253,23 +253,12 @@ func (c *CLI) whitelistAdd() int {
 	return 0
 }
 
-/*
-func (c *CLI) whitelistRemove(args []string) int {
-	fs := flag.NewFlagSet("whitelist remove", flag.ContinueOnError)
-	fs.SetOutput(c.stderr)
-
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintln(c.stderr, err)
+func (c *CLI) whitelistRemove() int {
+	fs := c.parseSubnetCommand("whitelist remove")
+	if fs == nil {
 		return 1
 	}
-
-	positional := fs.Args()
-	if len(positional) < 1 {
-		fmt.Fprintln(c.stderr, "Usage: cli whitelist remove <subnet>")
-		return 1
-	}
-
-	subnet := positional[0]
+	subnet := fs.Args()[0]
 
 	reqBody := map[string]string{"subnet": subnet}
 	resp, err := c.postJSON(c.server+"/whitelist/remove", reqBody)
@@ -288,12 +277,9 @@ func (c *CLI) whitelistRemove(args []string) int {
 	return 1
 }
 
-func (c *CLI) whitelistList(args []string) int {
-	fs := flag.NewFlagSet("whitelist list", flag.ContinueOnError)
-	fs.SetOutput(c.stderr)
-
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintln(c.stderr, err)
+func (c *CLI) whitelistList() int {
+	if len(c.args) != 0 {
+		fmt.Fprintf(c.stderr, "Usage: cli whitelist list\n")
 		return 1
 	}
 
@@ -310,17 +296,11 @@ func (c *CLI) whitelistList(args []string) int {
 		return 1
 	}
 
-	if len(result["subnets"]) == 0 {
-		fmt.Fprintln(c.stdout, "Whitelist is empty")
-	} else {
-		fmt.Fprintln(c.stdout, "Whitelist:")
-		for _, subnet := range result["subnets"] {
-			fmt.Fprintf(c.stdout, "  %s\n", subnet)
-		}
-	}
+	fmt.Fprintf(c.stdout, "Whitelist: %v\n", result["whitelist"])
 	return 0
 }
 
+/*
 func (c *CLI) runBlacklist(args []string) int {
 	// аналогично whitelist
 	if len(args) < 2 {
