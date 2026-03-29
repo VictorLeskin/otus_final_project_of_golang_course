@@ -454,6 +454,7 @@ func (c *CLI) postJSON(url string, body interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	//nolint:gosec // URL проверен при инициализации
 	return http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 }
 
