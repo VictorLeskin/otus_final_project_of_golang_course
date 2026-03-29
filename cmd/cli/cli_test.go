@@ -1578,3 +1578,57 @@ func TestCLI_blacklistList(t *testing.T) {
 		})
 	}
 }
+
+func TestCLI_removeServerFlag(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		expectedCode int
+		after        []string
+	}{
+		{
+			name:         "remove from end",
+			args:         []string{"--server", "https://192.168.1.0", "A", "B"},
+			expectedCode: 0,
+			after:        []string{"A", "B"},
+		},
+		{
+			name:         "remove from middle",
+			args:         []string{"A", "--server", "https://192.168.1.0", "B"},
+			expectedCode: 0,
+			after:        []string{"A", "B"},
+		},
+		{
+			name:         "remove from end",
+			args:         []string{"A", "B", "--server", "https://192.168.1.0"},
+			expectedCode: 0,
+			after:        []string{"A", "B"},
+		},
+		{
+			name:         "there is not --server",
+			args:         []string{"https://192.168.1.0", "A", "B"},
+			expectedCode: 1,
+			after:        []string{"https://192.168.1.0", "A", "B"},
+		},
+		{
+			name:         "there is not ip address",
+			args:         []string{"A", "B", "--server"},
+			expectedCode: 1,
+			after:        []string{"A", "B", "--server"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+
+			// Вызываем функцию
+			code := cli.removeServerFlag()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Equal(t, tt.after, cli.args)
+		})
+	}
+}
