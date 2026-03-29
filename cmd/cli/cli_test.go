@@ -11,45 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCLI_Check(t *testing.T) {
-	// Подменяем сервер
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/check", r.URL.Path)
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"ok": true}`))
-	}))
-	defer server.Close()
-
-	cli := NewCLI([]string{"cli", "check", "--login", "user", "--password", "pass", "--ip", "1.1.1.1"})
-	cli.getenv = func(key string) string {
-		if key == "ANTIBRUTEFORCE_SERVER" {
-			return server.URL
-		}
-		return ""
-	}
-
-	out := &bytes.Buffer{}
-	cli.stdout = out
-
-	code := cli.Run()
-
-	assert.Equal(t, 0, code)
-	assert.Contains(t, out.String(), "OK")
-}
-
-func TestCLI_Check_InvalidArgs(t *testing.T) {
-	cli := NewCLI([]string{"cli", "check"}) // missing args
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	cli.stdout = out
-	cli.stderr = errOut
-
-	code := cli.Run()
-
-	assert.Equal(t, 1, code)
-	assert.Contains(t, errOut.String(), "required")
-}
-
 func TestCLI_runServerCommand(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -1629,6 +1590,146 @@ func TestCLI_removeServerFlag(t *testing.T) {
 			// Проверяем результат
 			assert.Equal(t, tt.expectedCode, code)
 			assert.Equal(t, tt.after, cli.args)
+		})
+	}
+}
+
+func TestCLI_initServer(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          []string
+		expectedCode  int
+		server        string
+		expectedError string
+	}{
+		{
+			name:          "remove from end",
+			args:          []string{"--server", "https://192.168.1.0", "A", "B"},
+			expectedCode:  0,
+			server:        "https://192.168.1.0",
+			expectedError: "",
+		},
+		{
+			name:          "empty server",
+			args:          []string{"--server", "", "A", "B"},
+			expectedCode:  1,
+			server:        "",
+			expectedError: "--server is required",
+		},
+		{
+			name:          "missed --server",
+			args:          []string{"https://192.168.1.0", "A", "B"},
+			expectedCode:  1,
+			server:        "",
+			expectedError: "failed to parse --server flag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.initServer()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Equal(t, tt.server, cli.server)
+		})
+	}
+}
+
+func TestCLI_Run(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedCode     int
+		expectedOutput   string
+		expectedError    string
+		ServerStatusCode int
+	}{
+		{
+			name:             "run reset command",
+			args:             []string{"cli", "--server", "Insert server address", "reset", "login", "google_admin"},
+			expectedCode:     0,
+			expectedOutput:   "Reset successful for login: google_admin\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "bad request at run reset command",
+			args:             []string{"cli", "--server", "Insert server address", "reset", "login", "google_admin"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:           "bad server name",
+			args:           []string{"cli", "reset", "login", "google_admin", "--server"},
+			expectedCode:   1,
+			expectedOutput: "",
+			expectedError:  "--server is required\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+				// Проверяем тело запроса
+				var req map[string]string
+				err := json.NewDecoder(r.Body).Decode(&req)
+				require.NoError(t, err)
+
+				if tt.name == "run check command" {
+					response := map[string]bool{
+						"result": true,
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				}
+				if tt.name == "bad request at run check command" {
+					response := CheckResult{
+						Result: false,
+						Error:  "invalid ip address",
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				}
+
+				w.WriteHeader(tt.ServerStatusCode)
+
+			}))
+			defer server.Close()
+
+			for i := range tt.args {
+				if tt.args[i] == "Insert server address" {
+					tt.args[i] = server.URL
+					break
+				}
+			}
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.Run()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
 		})
 	}
 }

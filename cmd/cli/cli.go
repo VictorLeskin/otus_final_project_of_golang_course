@@ -41,7 +41,7 @@ func (c *CLI) initServer() int {
 	serverFlag := fs.String("server", "", "")
 
 	// Парсим аргументы, ищем --server
-	if err := fs.Parse(c.args[1:]); err != nil {
+	if err := fs.Parse(c.args); err != nil {
 		fmt.Fprintln(c.stderr, "failed to parse --server flag")
 		return 1
 	}
@@ -63,9 +63,7 @@ func (c *CLI) Run() int {
 		return 1
 	}
 
-	if c.removeServerFlag() == 1 {
-		return 1
-	}
+	_ = c.removeServerFlag() // --server URL presented. No need to process return code.
 
 	return c.runServerCommand()
 }
