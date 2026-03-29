@@ -106,7 +106,6 @@ func TestCLI_runServerCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем тестовый сервер
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 				// Проверяем тело запроса
 				var req map[string]string
 				err := json.NewDecoder(r.Body).Decode(&req)
@@ -129,7 +128,6 @@ func TestCLI_runServerCommand(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.ServerStatusCode)
-
 			}))
 			defer server.Close()
 
@@ -763,7 +761,7 @@ func TestCLI_whitelistList(t *testing.T) {
 	tests := []struct {
 		name                  string
 		listOnServer          []string
-		generatedJsonOnServer string
+		generatedJSONOnServer string
 		ServerStatusCode      int
 		args                  []string
 		expectedCode          int
@@ -805,7 +803,7 @@ func TestCLI_whitelistList(t *testing.T) {
 			name:                  "get send wrong JSON",
 			listOnServer:          []string{},
 			ServerStatusCode:      http.StatusOK,
-			generatedJsonOnServer: "{invalid json}",
+			generatedJSONOnServer: "{invalid json}",
 			args:                  []string{},
 			expectedCode:          1,
 			expectedOutput:        "",
@@ -827,16 +825,16 @@ func TestCLI_whitelistList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем тестовый сервер
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tt.ServerStatusCode)
-				if tt.generatedJsonOnServer == "" {
+				if tt.generatedJSONOnServer == "" {
 					response := map[string][]string{
 						"whitelist": tt.listOnServer,
 					}
 					err := json.NewEncoder(w).Encode(response)
 					require.NoError(t, err)
 				} else {
-					w.Write([]byte(tt.generatedJsonOnServer))
+					w.Write([]byte(tt.generatedJSONOnServer))
 				}
 			}))
 			defer server.Close()
@@ -1135,7 +1133,7 @@ func TestCLI_runCheck(t *testing.T) {
 		listOnServer          []string
 		checkResult           bool
 		checkError            string
-		generatedJsonOnServer string
+		generatedJSONOnServer string
 		ServerStatusCode      int
 		args                  []string
 		expectedCode          int
@@ -1181,7 +1179,7 @@ func TestCLI_runCheck(t *testing.T) {
 			args:                  []string{"--login", "me", "--password", "qwerty", "--ip", "ABCD.201.202.203"},
 			checkResult:           false,
 			checkError:            "invalid ip addresss",
-			generatedJsonOnServer: "{invalid json}",
+			generatedJSONOnServer: "{invalid json}",
 			ServerStatusCode:      http.StatusOK,
 			expectedCode:          1,
 			expectedOutput:        "",
@@ -1215,9 +1213,9 @@ func TestCLI_runCheck(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем тестовый сервер
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tt.ServerStatusCode)
-				if tt.generatedJsonOnServer == "" {
+				if tt.generatedJSONOnServer == "" {
 					if tt.checkError != "" {
 						response := CheckResult{
 							Result: tt.checkResult,
@@ -1233,7 +1231,7 @@ func TestCLI_runCheck(t *testing.T) {
 						require.NoError(t, err)
 					}
 				} else {
-					w.Write([]byte(tt.generatedJsonOnServer))
+					w.Write([]byte(tt.generatedJSONOnServer))
 				}
 			}))
 			defer server.Close()
@@ -1440,7 +1438,7 @@ func TestCLI_blacklistList(t *testing.T) {
 	tests := []struct {
 		name                  string
 		listOnServer          []string
-		generatedJsonOnServer string
+		generatedJSONOnServer string
 		ServerStatusCode      int
 		args                  []string
 		expectedCode          int
@@ -1482,7 +1480,7 @@ func TestCLI_blacklistList(t *testing.T) {
 			name:                  "get send wrong JSON",
 			listOnServer:          []string{},
 			ServerStatusCode:      http.StatusOK,
-			generatedJsonOnServer: "{invalid json}",
+			generatedJSONOnServer: "{invalid json}",
 			args:                  []string{},
 			expectedCode:          1,
 			expectedOutput:        "",
@@ -1504,16 +1502,16 @@ func TestCLI_blacklistList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем тестовый сервер
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tt.ServerStatusCode)
-				if tt.generatedJsonOnServer == "" {
+				if tt.generatedJSONOnServer == "" {
 					response := map[string][]string{
 						"blacklist": tt.listOnServer,
 					}
 					err := json.NewEncoder(w).Encode(response)
 					require.NoError(t, err)
 				} else {
-					w.Write([]byte(tt.generatedJsonOnServer))
+					w.Write([]byte(tt.generatedJSONOnServer))
 				}
 			}))
 			defer server.Close()
@@ -1681,7 +1679,6 @@ func TestCLI_Run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем тестовый сервер
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 				// Проверяем тело запроса
 				var req map[string]string
 				err := json.NewDecoder(r.Body).Decode(&req)
@@ -1704,7 +1701,6 @@ func TestCLI_Run(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.ServerStatusCode)
-
 			}))
 			defer server.Close()
 

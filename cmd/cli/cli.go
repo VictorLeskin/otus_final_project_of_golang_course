@@ -32,15 +32,15 @@ func NewCLI(args []string) *CLI {
 	}
 }
 
-// initServer парсит флаг --server из аргументов командной строки
-// server является обязательным параметром
+// initServer парсит флаг --server из аргументов командной строки.
+// server является обязательным параметром.
 func (c *CLI) initServer() int {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.SetOutput(io.Discard) // подавляем вывод ошибок
+	fs.SetOutput(io.Discard) // подавляем вывод ошибок.
 
 	serverFlag := fs.String("server", "", "")
 
-	// Парсим аргументы, ищем --server
+	// Парсим аргументы, ищем --server.
 	if err := fs.Parse(c.args); err != nil {
 		fmt.Fprintln(c.stderr, "failed to parse --server flag")
 		return 1
@@ -56,9 +56,9 @@ func (c *CLI) initServer() int {
 }
 
 func (c *CLI) Run() int {
-	c.args = c.args[1:] // remove programm name
+	c.args = c.args[1:] // remove programm name.
 
-	// Инициализируем server один раз
+	// Инициализируем server один раз.
 	if c.initServer() == 1 {
 		return 1
 	}
@@ -68,8 +68,8 @@ func (c *CLI) Run() int {
 	return c.runServerCommand()
 }
 
-// removeServerFlag удаляет --server и его значение из аргументов
-// возвращает 0 если нет ошибок, 1 в противном
+// removeServerFlag удаляет --server и его значение из аргументов.
+// возвращает 0 если нет ошибок, 1 в противном.
 func (c *CLI) removeServerFlag() int {
 	for i := 0; i < len(c.args); i++ {
 		if c.args[i] == "--server" {
@@ -88,7 +88,7 @@ func (c *CLI) runServerCommand() int {
 		return 1
 	}
 
-	// Передаем очищенные аргументы в команды
+	// Передаем очищенные аргументы в команды.
 	switch c.args[0] {
 	case "check":
 		c.args = c.args[1:]
@@ -184,7 +184,7 @@ func (c *CLI) parseSubnetCommand(name string, parameterType string) *flag.FlagSe
 		return nil
 	}
 
-	// Позиционные аргументы после флагов
+	// Позиционные аргументы после флагов.
 	if len(fs.Args()) < 1 {
 		fmt.Fprintf(c.stderr, "Usage: cli %s <%s>\n", name, parameterType)
 		return nil
@@ -440,13 +440,13 @@ func (c *CLI) runCheck() int {
 		return 1
 	}
 
-	if result.Result {
-		fmt.Fprintln(c.stdout, "OK: allowed")
-		return 0
-	} else {
+	if !result.Result {
 		fmt.Fprintln(c.stdout, "DENIED: brute-force detected")
 		return 1
 	}
+
+	fmt.Fprintln(c.stdout, "OK: allowed")
+	return 0
 }
 
 func (c *CLI) postJSON(url string, body interface{}) (*http.Response, error) {
