@@ -101,30 +101,96 @@ func (c *CLI) removeServerFlag() []string {
 	}
 	return result
 }
+*/
 
-
-
-func (c *CLI) runWhitelist(args []string) int {
-	if len(args) < 2 {
-		fmt.Fprintln(c.stderr, "Usage: cli whitelist <add|remove|list> [subnet]")
+func (c *CLI) runCommand() int {
+	if len(c.args) < 1 {
+		fmt.Fprintln(c.stderr, "Wrong 'cli whitelist' command line parameters")
 		return 1
 	}
 
-	subcmd := args[1]
+	// Передаем очищенные аргументы в команды
+	switch c.args[0] {
+	case "check":
+		c.args = c.args[1:]
+		return c.runCheck()
+	case "reset":
+		c.args = c.args[1:]
+		return c.runReset()
+	case "whitelist":
+		c.args = c.args[1:]
+		return c.runWhitelist()
+	case "blacklist":
+		c.args = c.args[1:]
+		return c.runBlacklist()
+	default:
+		c.printUsage()
+		return 1
+	}
+}
+
+func (c *CLI) runReset() int {
+	if len(c.args) < 1 {
+		fmt.Fprintln(c.stderr, "Wrong 'cli whitelist' command line parameters")
+		return 1
+	}
+	subcmd := c.args[0]
 	switch subcmd {
-	case "add":
-		return c.whitelistAdd()
-	case "remove":
-		return c.whitelistRemove(args[2:])
-	case "list":
-		return c.whitelistList(args[2:])
+	case "login":
+		c.args = c.args[1:]
+		return c.resetLogin()
+	case "ip":
+		c.args = c.args[1:]
+		return c.resetIP()
 	default:
 		fmt.Fprintf(c.stderr, "Unknown whitelist command: %s\n", subcmd)
 		return 1
 	}
 }
 
-*/
+func (c *CLI) runWhitelist() int {
+	if len(c.args) < 1 {
+		fmt.Fprintln(c.stderr, "Wrong 'cli whitelist' command line parameters")
+		return 1
+	}
+	subcmd := c.args[0]
+	switch subcmd {
+	case "add":
+		c.args = c.args[1:]
+		return c.whitelistAdd()
+	case "remove":
+		c.args = c.args[1:]
+		return c.whitelistRemove()
+	case "list":
+		c.args = c.args[1:]
+		return c.whitelistList()
+	default:
+		fmt.Fprintf(c.stderr, "Unknown whitelist command: %s\n", subcmd)
+		return 1
+	}
+}
+
+func (c *CLI) runBlacklist() int {
+	if len(c.args) < 1 {
+		fmt.Fprintln(c.stderr, "Wrong 'cli blacklist' command line parameters")
+		return 1
+	}
+	subcmd := c.args[0]
+	switch subcmd {
+	case "add":
+		c.args = c.args[1:]
+		return c.blacklistAdd()
+	case "remove":
+		c.args = c.args[1:]
+		return c.blacklistRemove()
+	case "list":
+		c.args = c.args[1:]
+		return c.blacklistList()
+	default:
+		fmt.Fprintf(c.stderr, "Unknown blacklist command: %s\n", subcmd)
+		return 1
+	}
+}
 
 // parseSubnetCommand парсит команды add/remove/reset для whitelist/blacklist/login/ip.
 // name - имя команды для справки (например "whitelist add").
@@ -266,6 +332,74 @@ func (c *CLI) whitelistList() int {
 	return 0
 }
 
+func (c *CLI) blacklistAdd() int {
+	fs := c.parseSubnetCommand("blacklist add", "subnet")
+	if fs == nil {
+		return 1
+	}
+	subnet := fs.Args()[0]
+
+	reqBody := map[string]string{"subnet": subnet}
+	resp, err := c.postJSON(c.server+"/blacklist/add", reqBody)
+	if err != nil {
+		fmt.Fprintf(c.stderr, "Error: %v\n", err)
+		return 1
+	}
+	defer resp.Body.Close()
+
+	return c.processServerStatus(resp, func() {
+		fmt.Fprintf(c.stdout, "Added %s to blacklist\n", subnet)
+	})
+}
+
+func (c *CLI) blacklistRemove() int {
+	fs := c.parseSubnetCommand("blacklist remove", "subnet")
+	if fs == nil {
+		return 1
+	}
+	subnet := fs.Args()[0]
+
+	reqBody := map[string]string{"subnet": subnet}
+	resp, err := c.postJSON(c.server+"/blacklist/remove", reqBody)
+	if err != nil {
+		fmt.Fprintf(c.stderr, "Error: %v\n", err)
+		return 1
+	}
+	defer resp.Body.Close()
+
+	return c.processServerStatus(resp, func() {
+		fmt.Fprintf(c.stdout, "Removed %s from blacklist\n", subnet)
+	})
+}
+
+func (c *CLI) blacklistList() int {
+	if len(c.args) != 0 {
+		fmt.Fprintf(c.stderr, "Usage: cli blacklist list\n")
+		return 1
+	}
+
+	resp, err := http.Get(c.server + "/blacklist")
+	if err != nil {
+		fmt.Fprintf(c.stderr, "Error: %v\n", err)
+		return 1
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(c.stderr, "Server error: %s\n", resp.Status)
+		return 1
+	}
+
+	var result map[string][]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Fprintf(c.stderr, "Error parsing response: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintf(c.stdout, "Whitelist: %v\n", result["blacklist"])
+	return 0
+}
+
 func (c *CLI) parseCheckCommand() (int, *string, *string, *string) {
 	if len(c.args) != 6 {
 		fmt.Fprintln(c.stderr, "Usage: cli check --login <login> --password <password> --ip <ip>")
@@ -335,131 +469,6 @@ func (c *CLI) runCheck() int {
 		return 1
 	}
 }
-
-/*
-func (c *CLI) runBlacklist(args []string) int {
-	// аналогично whitelist
-	if len(args) < 2 {
-		fmt.Fprintln(c.stderr, "Usage: cli blacklist <add|remove|list> [subnet]")
-		return 1
-	}
-
-	subcmd := args[1]
-	switch subcmd {
-	case "add":
-		return c.blacklistAdd(args[2:])
-	case "remove":
-		return c.blacklistRemove(args[2:])
-	case "list":
-		return c.blacklistList(args[2:])
-	default:
-		fmt.Fprintf(c.stderr, "Unknown blacklist command: %s\n", subcmd)
-		return 1
-	}
-}
-
-func (c *CLI) blacklistAdd(args []string) int {
-	fs := flag.NewFlagSet("blacklist add", flag.ContinueOnError)
-	fs.SetOutput(c.stderr)
-
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintln(c.stderr, err)
-		return 1
-	}
-
-	positional := fs.Args()
-	if len(positional) < 1 {
-		fmt.Fprintln(c.stderr, "Usage: cli blacklist add <subnet>")
-		return 1
-	}
-
-	subnet := positional[0]
-
-	reqBody := map[string]string{"subnet": subnet}
-	resp, err := c.postJSON(c.server+"/blacklist/add", reqBody)
-	if err != nil {
-		fmt.Fprintf(c.stderr, "Error: %v\n", err)
-		return 1
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		fmt.Fprintf(c.stdout, "Added %s to blacklist\n", subnet)
-		return 0
-	}
-
-	fmt.Fprintf(c.stderr, "Server error: %s\n", resp.Status)
-	return 1
-}
-
-func (c *CLI) blacklistRemove(args []string) int {
-	fs := flag.NewFlagSet("blacklist remove", flag.ContinueOnError)
-	fs.SetOutput(c.stderr)
-
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintln(c.stderr, err)
-		return 1
-	}
-
-	positional := fs.Args()
-	if len(positional) < 1 {
-		fmt.Fprintln(c.stderr, "Usage: cli blacklist remove <subnet>")
-		return 1
-	}
-
-	subnet := positional[0]
-
-	reqBody := map[string]string{"subnet": subnet}
-	resp, err := c.postJSON(c.server+"/blacklist/remove", reqBody)
-	if err != nil {
-		fmt.Fprintf(c.stderr, "Error: %v\n", err)
-		return 1
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		fmt.Fprintf(c.stdout, "Removed %s from blacklist\n", subnet)
-		return 0
-	}
-
-	fmt.Fprintf(c.stderr, "Server error: %s\n", resp.Status)
-	return 1
-}
-
-func (c *CLI) blacklistList(args []string) int {
-	fs := flag.NewFlagSet("blacklist list", flag.ContinueOnError)
-	fs.SetOutput(c.stderr)
-
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintln(c.stderr, err)
-		return 1
-	}
-
-	resp, err := http.Get(c.server + "/blacklist")
-	if err != nil {
-		fmt.Fprintf(c.stderr, "Error: %v\n", err)
-		return 1
-	}
-	defer resp.Body.Close()
-
-	var result map[string][]string
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		fmt.Fprintf(c.stderr, "Error parsing response: %v\n", err)
-		return 1
-	}
-
-	if len(result["subnets"]) == 0 {
-		fmt.Fprintln(c.stdout, "Blacklist is empty")
-	} else {
-		fmt.Fprintln(c.stdout, "Blacklist:")
-		for _, subnet := range result["subnets"] {
-			fmt.Fprintf(c.stdout, "  %s\n", subnet)
-		}
-	}
-	return 0
-}
-
-*/
 
 func (c *CLI) postJSON(url string, body interface{}) (*http.Response, error) {
 	jsonData, err := json.Marshal(body)

@@ -50,6 +50,244 @@ func TestCLI_Check_InvalidArgs(t *testing.T) {
 	assert.Contains(t, errOut.String(), "required")
 }
 
+func TestCLI_Check_runWhitelist(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedCode     int
+		expectedOutput   string
+		expectedError    string
+		ServerStatusCode int
+		listOnServer     []string
+	}{
+		{
+			name:             "add subnet to whitelist",
+			args:             []string{"add", "192.168.1.0/24"},
+			expectedCode:     0,
+			expectedOutput:   "Added 192.168.1.0/24 to whitelist\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "remove subnet from whitelist",
+			args:             []string{"remove", "192.168.1.0/24"},
+			expectedCode:     0,
+			expectedOutput:   "Removed 192.168.1.0/24 from whitelist\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "get whitelist",
+			listOnServer:     []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode: http.StatusOK,
+			args:             []string{"list"},
+			expectedCode:     0,
+			expectedOutput:   "Whitelist: [192.168.1.0/24 10.0.0.0/8]\n",
+			expectedError:    "",
+		},
+		{
+			name:             "failed adding subnet to whitelist",
+			args:             []string{"add", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "failed removing subnet to whitelist",
+			args:             []string{"remove", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "failed get list request",
+			args:             []string{"list"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "missed command line parameters",
+			args:             []string{},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Wrong 'cli whitelist' command line parameters\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "wrong command",
+			args:             []string{"kadd", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Unknown whitelist command: kadd\n",
+			ServerStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.ServerStatusCode)
+				if tt.ServerStatusCode == http.StatusBadRequest {
+					return
+				}
+				if len(tt.listOnServer) != 0 {
+					response := map[string][]string{
+						"whitelist": tt.listOnServer,
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				} else {
+					// Проверяем тело запроса
+					var req map[string]string
+					err := json.NewDecoder(r.Body).Decode(&req)
+					require.NoError(t, err)
+				}
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.runWhitelist()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
+func TestCLI_Check_runBlacklist(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedCode     int
+		expectedOutput   string
+		expectedError    string
+		ServerStatusCode int
+		listOnServer     []string
+	}{
+		{
+			name:             "add subnet to blacklist",
+			args:             []string{"add", "192.168.1.0/24"},
+			expectedCode:     0,
+			expectedOutput:   "Added 192.168.1.0/24 to blacklist\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "remove subnet from blacklist",
+			args:             []string{"remove", "192.168.1.0/24"},
+			expectedCode:     0,
+			expectedOutput:   "Removed 192.168.1.0/24 from blacklist\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "get blacklist",
+			listOnServer:     []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode: http.StatusOK,
+			args:             []string{"list"},
+			expectedCode:     0,
+			expectedOutput:   "Whitelist: [192.168.1.0/24 10.0.0.0/8]\n",
+			expectedError:    "",
+		},
+		{
+			name:             "failed adding subnet to blacklist",
+			args:             []string{"add", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "failed removing subnet to blacklist",
+			args:             []string{"remove", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "failed get list request",
+			args:             []string{"list"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "missed command line parameters",
+			args:             []string{},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Wrong 'cli blacklist' command line parameters\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "wrong command",
+			args:             []string{"kadd", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Unknown blacklist command: kadd\n",
+			ServerStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.ServerStatusCode)
+				if tt.ServerStatusCode == http.StatusBadRequest {
+					return
+				}
+				if len(tt.listOnServer) != 0 {
+					response := map[string][]string{
+						"blacklist": tt.listOnServer,
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				} else {
+					// Проверяем тело запроса
+					var req map[string]string
+					err := json.NewDecoder(r.Body).Decode(&req)
+					require.NoError(t, err)
+				}
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.runBlacklist()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
 func TestCLI_parseSubnetCommand(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -392,7 +630,8 @@ func TestCLI_whitelistList(t *testing.T) {
 					response := map[string][]string{
 						"whitelist": tt.listOnServer,
 					}
-					json.NewEncoder(w).Encode(response)
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
 				} else {
 					w.Write([]byte(tt.generatedJsonOnServer))
 				}
@@ -781,12 +1020,14 @@ func TestCLI_runCheck(t *testing.T) {
 							Result: tt.checkResult,
 							Error:  tt.checkError,
 						}
-						json.NewEncoder(w).Encode(response)
+						err := json.NewEncoder(w).Encode(response)
+						require.NoError(t, err)
 					} else {
 						response := map[string]bool{
 							"result": tt.checkResult,
 						}
-						json.NewEncoder(w).Encode(response)
+						err := json.NewEncoder(w).Encode(response)
+						require.NoError(t, err)
 					}
 				} else {
 					w.Write([]byte(tt.generatedJsonOnServer))
@@ -807,6 +1048,286 @@ func TestCLI_runCheck(t *testing.T) {
 
 			// Вызываем функцию
 			code := cli.runCheck()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
+func TestCLI_blacklistAdd(t *testing.T) {
+	tests := []struct {
+		name               string
+		args               []string
+		expectedCode       int
+		expectedOutput     string
+		expectedError      string
+		ServerStatusCode   int
+		emulateServerError bool
+	}{
+		{
+			name:               "successful",
+			args:               []string{"192.168.1.0/24"},
+			expectedCode:       0,
+			expectedOutput:     "Added 192.168.1.0/24 to blacklist\n",
+			expectedError:      "",
+			ServerStatusCode:   http.StatusOK,
+			emulateServerError: false,
+		},
+		{
+			name:               "missed subnet",
+			args:               []string{},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Usage: cli blacklist add <subnet>",
+			ServerStatusCode:   http.StatusOK,
+			emulateServerError: false,
+		},
+		{
+			name:               "server return bad request",
+			args:               []string{"192.168.1.0/24"},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Server error: 400 Bad Request",
+			ServerStatusCode:   http.StatusBadRequest,
+			emulateServerError: false,
+		},
+		{
+			name:               "internal server error",
+			args:               []string{"192.168.1.0/24"},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Error: Post",
+			ServerStatusCode:   http.StatusInternalServerError,
+			emulateServerError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Проверяем путь и метод
+				assert.Equal(t, "/blacklist/add", r.URL.Path)
+				assert.Equal(t, "POST", r.Method)
+
+				// Проверяем тело запроса
+				var req map[string]string
+				err := json.NewDecoder(r.Body).Decode(&req)
+				require.NoError(t, err)
+				assert.Equal(t, "192.168.1.0/24", req["subnet"])
+
+				w.WriteHeader(tt.ServerStatusCode)
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			if tt.emulateServerError {
+				server.Close()
+			}
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.blacklistAdd()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
+func TestCLI_blacklistRemove(t *testing.T) {
+	tests := []struct {
+		name               string
+		args               []string
+		expectedCode       int
+		expectedOutput     string
+		expectedError      string
+		ServerStatusCode   int
+		emulateServerError bool
+	}{
+		{
+			name:               "successful",
+			args:               []string{"192.168.1.0/24"},
+			expectedCode:       0,
+			expectedOutput:     "Removed 192.168.1.0/24 from blacklist\n",
+			expectedError:      "",
+			ServerStatusCode:   http.StatusOK,
+			emulateServerError: false,
+		},
+		{
+			name:               "missed subnet",
+			args:               []string{},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Usage: cli blacklist remove <subnet>",
+			ServerStatusCode:   http.StatusOK,
+			emulateServerError: false,
+		},
+		{
+			name:               "server return bad request",
+			args:               []string{"192.168.1.0/24"},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Server error: 400 Bad Request",
+			ServerStatusCode:   http.StatusBadRequest,
+			emulateServerError: false,
+		},
+		{
+			name:               "internal server error",
+			args:               []string{"192.168.1.0/24"},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Error: Post",
+			ServerStatusCode:   http.StatusInternalServerError,
+			emulateServerError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Проверяем путь и метод
+				assert.Equal(t, "/blacklist/remove", r.URL.Path)
+				assert.Equal(t, "POST", r.Method)
+
+				// Проверяем тело запроса
+				var req map[string]string
+				err := json.NewDecoder(r.Body).Decode(&req)
+				require.NoError(t, err)
+				assert.Equal(t, "192.168.1.0/24", req["subnet"])
+
+				w.WriteHeader(tt.ServerStatusCode)
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			if tt.emulateServerError {
+				server.Close()
+			}
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.blacklistRemove()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
+func TestCLI_blacklistList(t *testing.T) {
+	tests := []struct {
+		name                  string
+		listOnServer          []string
+		generatedJsonOnServer string
+		ServerStatusCode      int
+		args                  []string
+		expectedCode          int
+		expectedOutput        string
+		expectedError         string
+		emulateServerError    bool
+	}{
+		{
+			name:               "get two subnets",
+			listOnServer:       []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode:   http.StatusOK,
+			args:               []string{},
+			expectedCode:       0,
+			expectedOutput:     "Whitelist: [192.168.1.0/24 10.0.0.0/8]\n",
+			expectedError:      "",
+			emulateServerError: false,
+		},
+		{
+			name:               "get empty subnets",
+			listOnServer:       []string{},
+			ServerStatusCode:   http.StatusOK,
+			args:               []string{},
+			expectedCode:       0,
+			expectedOutput:     "Whitelist: []\n",
+			expectedError:      "",
+			emulateServerError: false,
+		},
+		{
+			name:               "server error",
+			listOnServer:       []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode:   http.StatusOK,
+			args:               []string{},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Error: Get",
+			emulateServerError: true,
+		},
+		{
+			name:                  "get send wrong JSON",
+			listOnServer:          []string{},
+			ServerStatusCode:      http.StatusOK,
+			generatedJsonOnServer: "{invalid json}",
+			args:                  []string{},
+			expectedCode:          1,
+			expectedOutput:        "",
+			expectedError:         "Error parsing response:",
+			emulateServerError:    false,
+		},
+		{
+			name:               "internal server error",
+			listOnServer:       []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode:   http.StatusInternalServerError,
+			args:               []string{},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Server error: 500 Internal Server Error\n",
+			emulateServerError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.ServerStatusCode)
+				if tt.generatedJsonOnServer == "" {
+					response := map[string][]string{
+						"blacklist": tt.listOnServer,
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				} else {
+					w.Write([]byte(tt.generatedJsonOnServer))
+				}
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			if tt.emulateServerError {
+				server.Close()
+			}
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.blacklistList()
 
 			// Проверяем результат
 			assert.Equal(t, tt.expectedCode, code)
