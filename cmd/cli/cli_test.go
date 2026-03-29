@@ -50,6 +50,248 @@ func TestCLI_Check_InvalidArgs(t *testing.T) {
 	assert.Contains(t, errOut.String(), "required")
 }
 
+func TestCLI_runServerCommand(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedCode     int
+		expectedOutput   string
+		expectedError    string
+		ServerStatusCode int
+	}{
+		{
+			name:             "run reset command",
+			args:             []string{"reset", "login", "google_admin"},
+			expectedCode:     0,
+			expectedOutput:   "Reset successful for login: google_admin\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "run whitelist command",
+			args:             []string{"whitelist", "add", "192.168.1.0/24"},
+			expectedCode:     0,
+			expectedOutput:   "Added 192.168.1.0/24 to whitelist\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "run blacklist command",
+			args:             []string{"blacklist", "add", "192.168.1.0/24"},
+			expectedCode:     0,
+			expectedOutput:   "Added 192.168.1.0/24 to blacklist\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "run check command",
+			args:             []string{"check", "--login", "me", "--password", "qwerty", "--ip", "200.201.202.203"},
+			expectedCode:     0,
+			expectedOutput:   "OK: allowed\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "bad request at run reset command",
+			args:             []string{"reset", "login", "google_admin"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "bad request at run whitelist command",
+			args:             []string{"whitelist", "add", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "bad request at run blacklist command",
+			args:             []string{"blacklist", "add", "192.168.1.0/24"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "bad request at run check command",
+			args:             []string{"check", "--login", "me", "--password", "qwerty", "--ip", "ABCD.201.202.203"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "invalid ip address\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "no parameters",
+			args:             []string{},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Wrong command line parameters\n",
+			ServerStatusCode: http.StatusOK,
+		},
+		{
+			name:             "bad command",
+			args:             []string{"a_reset", "login", "google_admin"},
+			expectedCode:     1,
+			expectedOutput:   "Anti-BruteForce CLI\n\nUsage:\n",
+			expectedError:    "",
+			ServerStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+				// Проверяем тело запроса
+				var req map[string]string
+				err := json.NewDecoder(r.Body).Decode(&req)
+				require.NoError(t, err)
+
+				if tt.name == "run check command" {
+					response := map[string]bool{
+						"result": true,
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				}
+				if tt.name == "bad request at run check command" {
+					response := CheckResult{
+						Result: false,
+						Error:  "invalid ip address",
+					}
+					err := json.NewEncoder(w).Encode(response)
+					require.NoError(t, err)
+				}
+
+				w.WriteHeader(tt.ServerStatusCode)
+
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.runServerCommand()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
+func TestCLI_runReset(t *testing.T) {
+	tests := []struct {
+		name               string
+		args               []string
+		expectedCode       int
+		expectedOutput     string
+		expectedError      string
+		ServerStatusCode   int
+		emulateServerError bool
+	}{
+		{
+			name:               "reset login",
+			args:               []string{"login", "google_admin"},
+			expectedCode:       0,
+			expectedOutput:     "Reset successful for login: google_admin\n",
+			expectedError:      "",
+			ServerStatusCode:   http.StatusOK,
+			emulateServerError: false,
+		},
+		{
+			name:               "reset ip",
+			args:               []string{"ip", "10.11.12.13"},
+			expectedCode:       0,
+			expectedOutput:     "Reset successful for ip: 10.11.12.13\n",
+			expectedError:      "",
+			ServerStatusCode:   http.StatusOK,
+			emulateServerError: false,
+		},
+		{
+			name:             "failed reset login",
+			args:             []string{"login", "google_admin"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "failed reset ip",
+			args:             []string{"ip", "10.11.12.13"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Server error: 400 Bad Request\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "missed command line parameters",
+			args:             []string{},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Wrong 'cli reset' command line parameters\n",
+			ServerStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:             "wrong command",
+			args:             []string{"klogin", "google_admin"},
+			expectedCode:     1,
+			expectedOutput:   "",
+			expectedError:    "Unknown reset command: klogin\n",
+			ServerStatusCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Проверяем путь и метод
+				assert.Equal(t, "/reset", r.URL.Path)
+				assert.Equal(t, "POST", r.Method)
+
+				// Проверяем тело запроса
+				var req map[string]string
+				err := json.NewDecoder(r.Body).Decode(&req)
+				require.NoError(t, err)
+
+				w.WriteHeader(tt.ServerStatusCode)
+			}))
+			defer server.Close()
+
+			// Создаем CLI с аргументами
+			cli := NewCLI(tt.args)
+			cli.server = server.URL
+			if tt.emulateServerError {
+				server.Close()
+			}
+			stdout := &bytes.Buffer{}
+			cli.stdout = stdout
+			stderr := &bytes.Buffer{}
+			cli.stderr = stderr
+
+			// Вызываем функцию
+			code := cli.runReset()
+
+			// Проверяем результат
+			assert.Equal(t, tt.expectedCode, code)
+			assert.Contains(t, stdout.String(), tt.expectedOutput)
+			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
 func TestCLI_Check_runWhitelist(t *testing.T) {
 	tests := []struct {
 		name             string

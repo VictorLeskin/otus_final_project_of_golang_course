@@ -32,80 +32,61 @@ func NewCLI(args []string) *CLI {
 	}
 }
 
-// initServer инициализирует server из флага --server или переменной окружения
-func (c *CLI) initServer() {
+// initServer парсит флаг --server из аргументов командной строки
+// server является обязательным параметром
+func (c *CLI) initServer() int {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.SetOutput(io.Discard) // не выводим ошибки, если флаг не найден
+	fs.SetOutput(io.Discard) // подавляем вывод ошибок
 
-	serverFlag := fs.String("server", c.getenv("ANTIBRUTEFORCE_SERVER"), "")
+	serverFlag := fs.String("server", "", "")
 
-	// Парсим аргументы, игнорируя ошибки (флаг может отсутствовать)
-	_ = fs.Parse(c.args[1:])
-
-	if *serverFlag == "" {
-		c.server = "http://localhost:8080"
-	} else {
-		c.server = *serverFlag
-	}
-}
-
-func (c *CLI) Run() int {
-	// Инициализируем server один раз
-	c.initServer()
-
-	if len(c.args) < 2 {
-		c.printUsage()
+	// Парсим аргументы, ищем --server
+	if err := fs.Parse(c.args[1:]); err != nil {
+		fmt.Fprintln(c.stderr, "failed to parse --server flag")
 		return 1
 	}
 
-	/*
-		// Удаляем флаг --server из аргументов для дальнейшего парсинга
-		args := c.removeServerFlag()
-
-		// Передаем очищенные аргументы в команды
-		switch c.args[1] {
-		case "check":
-			return c.runCheck(args)
-		case "reset":
-			return c.runReset(args)
-		case "whitelist":
-			return c.runWhitelist(args)
-		case "blacklist":
-			return c.runBlacklist(args)
-		default:
-			c.printUsage()
-			return 1
-		}
-	*/
-
-	c.printUsage()
-	return 1
-
-}
-
-/*
-// removeServerFlag удаляет --server и его значение из аргументов
-func (c *CLI) removeServerFlag() []string {
-	var result []string
-	skip := false
-	for i := 1; i < len(c.args); i++ {
-		if skip {
-			skip = false
-			continue
-		}
-		if c.args[i] == "--server" && i+1 < len(c.args) {
-			skip = true
-			continue
-		}
-		result = append(result, c.args[i])
+	if *serverFlag == "" {
+		fmt.Fprintln(c.stderr, "--server is required")
+		return 1
 	}
-	return result
-}
-*/
 
-func (c *CLI) runCommand() int {
+	c.server = *serverFlag
+	return 0
+}
+
+func (c *CLI) Run() int {
+	c.args = c.args[1:] // remove programm name
+
+	// Инициализируем server один раз
+	if c.initServer() == 1 {
+		return 1
+	}
+
+	if c.removeServerFlag() == 1 {
+		return 1
+	}
+
+	return c.runServerCommand()
+}
+
+// removeServerFlag удаляет --server и его значение из аргументов
+// возвращает 0 если нет ошибок, 1 в противном
+func (c *CLI) removeServerFlag() int {
+	for i := 0; i < len(c.args); i++ {
+		if c.args[i] == "--server" {
+			if i+1 < len(c.args) {
+				c.args = append(c.args[:i], c.args[i+2:]...)
+				return 0
+			}
+		}
+	}
+	return 1
+}
+
+func (c *CLI) runServerCommand() int {
 	if len(c.args) < 1 {
-		fmt.Fprintln(c.stderr, "Wrong 'cli whitelist' command line parameters")
+		fmt.Fprintln(c.stderr, "Wrong command line parameters")
 		return 1
 	}
 
@@ -131,7 +112,7 @@ func (c *CLI) runCommand() int {
 
 func (c *CLI) runReset() int {
 	if len(c.args) < 1 {
-		fmt.Fprintln(c.stderr, "Wrong 'cli whitelist' command line parameters")
+		fmt.Fprintln(c.stderr, "Wrong 'cli reset' command line parameters")
 		return 1
 	}
 	subcmd := c.args[0]
@@ -143,7 +124,7 @@ func (c *CLI) runReset() int {
 		c.args = c.args[1:]
 		return c.resetIP()
 	default:
-		fmt.Fprintf(c.stderr, "Unknown whitelist command: %s\n", subcmd)
+		fmt.Fprintf(c.stderr, "Unknown reset command: %s\n", subcmd)
 		return 1
 	}
 }
@@ -483,15 +464,18 @@ func (c *CLI) printUsage() {
 
 Usage:
     cli check --login <login> --password <password> --ip <ip>
+    
     cli reset login <login>
     cli reset ip <ip>
-	cli whitelist add <subnet>
+    
+    cli whitelist add <subnet>
     cli whitelist remove <subnet>
     cli whitelist list
+    
     cli blacklist add <subnet>
     cli blacklist remove <subnet>
     cli blacklist list
 
-Environment:
-    ANTIBRUTEFORCE_SERVER  API server address (default: http://localhost:8080)`)
+Options:
+    --server <url>  API server address (required)`)
 }
