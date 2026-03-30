@@ -297,7 +297,7 @@ func (c *CLI) whitelistList() int {
 		return 1
 	}
 
-	resp, err := http.Get(c.server + "/whitelist")
+	resp, err := c.getJSON(c.server + "/whitelist")
 	if err != nil {
 		fmt.Fprintf(c.stderr, "Error: %v\n", err)
 		return 1
@@ -468,6 +468,15 @@ func (c *CLI) postJSON(url string, body interface{}) (*http.Response, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+
+	return c.httpClient.Do(req)
+}
+
+func (c *CLI) getJSON(url string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(c.ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return c.httpClient.Do(req)
 }
