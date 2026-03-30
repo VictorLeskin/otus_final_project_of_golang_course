@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -1765,6 +1766,88 @@ func TestCLI_Run(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, code)
 			assert.Contains(t, stdout.String(), tt.expectedOutput)
 			assert.Contains(t, stderr.String(), tt.expectedError)
+		})
+	}
+}
+
+func TestCLI_getJSON(t *testing.T) {
+	tests := []struct {
+		name             string
+		urlPath          string
+		ServerStatusCode int
+		cancel           bool
+		expectedAnswer   string
+		expectedErr      bool
+	}{
+		{
+			name:             "успешный запрос 0",
+			urlPath:          "/whitelist",
+			ServerStatusCode: http.StatusOK,
+			cancel:           false,
+			expectedAnswer:   `{"whitelist":"[192.168.1.0/24,10.0.0.0/8]"}`,
+			expectedErr:      false,
+		},
+		{
+			name:             "constxt cancel",
+			urlPath:          "/whitelist",
+			ServerStatusCode: http.StatusOK,
+			cancel:           true,
+			expectedAnswer:   "",
+			expectedErr:      true,
+		},
+		{
+			name:             "server error",
+			urlPath:          "[::1]",
+			ServerStatusCode: http.StatusBadGateway,
+			cancel:           false,
+			expectedAnswer:   "",
+			expectedErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Проверяем метод и путь
+				require.Equal(t, "GET", r.Method)
+				//require.Equal(t, tt.urlPath, r.URL.Path)
+
+				w.WriteHeader(tt.ServerStatusCode)
+				w.Write([]byte(tt.expectedAnswer))
+			}))
+			defer server.Close()
+
+			cli := NewCLI(nil)
+			if tt.cancel {
+				cli.cancel()
+			}
+
+			// Вызываем тестируемую функцию
+
+			urlPath := tt.urlPath
+			if tt.urlPath != "" {
+				urlPath = server.URL + tt.urlPath
+			}
+			resp, err := cli.getJSON(urlPath)
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			defer resp.Body.Close()
+
+			// Проверяем статус
+			assert.Equal(t, tt.ServerStatusCode, resp.StatusCode)
+
+			// Проверяем тело ответа
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedAnswer, string(body))
 		})
 	}
 }
