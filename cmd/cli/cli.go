@@ -2,20 +2,25 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"time"
 )
 
 type CLI struct {
 	args   []string
 	stdout io.Writer
 	stderr io.Writer
-	getenv func(string) string
 	server string
+
+	httpClient *http.Client
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 type CheckResult struct {
@@ -24,11 +29,14 @@ type CheckResult struct {
 }
 
 func NewCLI(args []string) *CLI {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	return &CLI{
-		args:   args,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
-		getenv: os.Getenv,
+		args:       args,
+		stdout:     os.Stdout,
+		stderr:     os.Stderr,
+		httpClient: &http.Client{},
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 }
 
@@ -454,8 +462,14 @@ func (c *CLI) postJSON(url string, body interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	//nolint:gosec // URL проверен при инициализации
-	return http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(c.ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	return c.httpClient.Do(req)
 }
 
 func (c *CLI) printUsage() {
