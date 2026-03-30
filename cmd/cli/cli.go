@@ -383,7 +383,7 @@ func (c *CLI) blacklistList() int {
 		return 1
 	}
 
-	fmt.Fprintf(c.stdout, "Whitelist: %v\n", result["blacklist"])
+	fmt.Fprintf(c.stdout, "Blacklist: %v\n", result["blacklist"])
 	return 0
 }
 

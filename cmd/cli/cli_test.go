@@ -402,7 +402,7 @@ func TestCLI_Check_runBlacklist(t *testing.T) {
 			ServerStatusCode: http.StatusOK,
 			args:             []string{"list"},
 			expectedCode:     0,
-			expectedOutput:   "Whitelist: [192.168.1.0/24 10.0.0.0/8]\n",
+			expectedOutput:   "Blacklist: [192.168.1.0/24 10.0.0.0/8]\n",
 			expectedError:    "",
 		},
 		{
@@ -820,6 +820,16 @@ func TestCLI_whitelistList(t *testing.T) {
 			expectedError:      "Server error: 500 Internal Server Error\n",
 			emulateServerError: false,
 		},
+		{
+			name:               "extra parameter",
+			listOnServer:       []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode:   http.StatusOK,
+			args:               []string{"something"},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Usage: cli whitelist list\n",
+			emulateServerError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1198,6 +1208,17 @@ func TestCLI_runCheck(t *testing.T) {
 			emulateServerError: true,
 		},
 		{
+			name:               "server error",
+			args:               []string{"--login", "me", "--password", "qwerty", "--ip", "200.201.202.203"},
+			checkResult:        true,
+			checkError:         "",
+			ServerStatusCode:   http.StatusBadRequest,
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Server error: 400 Bad Request\n",
+			emulateServerError: false,
+		},
+		{
 			name:               "wrong input",
 			args:               []string{"--login1"},
 			checkResult:        true,
@@ -1452,7 +1473,7 @@ func TestCLI_blacklistList(t *testing.T) {
 			ServerStatusCode:   http.StatusOK,
 			args:               []string{},
 			expectedCode:       0,
-			expectedOutput:     "Whitelist: [192.168.1.0/24 10.0.0.0/8]\n",
+			expectedOutput:     "Blacklist: [192.168.1.0/24 10.0.0.0/8]\n",
 			expectedError:      "",
 			emulateServerError: false,
 		},
@@ -1462,7 +1483,7 @@ func TestCLI_blacklistList(t *testing.T) {
 			ServerStatusCode:   http.StatusOK,
 			args:               []string{},
 			expectedCode:       0,
-			expectedOutput:     "Whitelist: []\n",
+			expectedOutput:     "Blacklist: []\n",
 			expectedError:      "",
 			emulateServerError: false,
 		},
@@ -1495,6 +1516,16 @@ func TestCLI_blacklistList(t *testing.T) {
 			expectedCode:       1,
 			expectedOutput:     "",
 			expectedError:      "Server error: 500 Internal Server Error\n",
+			emulateServerError: false,
+		},
+		{
+			name:               "extra parameter",
+			listOnServer:       []string{"192.168.1.0/24", "10.0.0.0/8"},
+			ServerStatusCode:   http.StatusOK,
+			args:               []string{"something"},
+			expectedCode:       1,
+			expectedOutput:     "",
+			expectedError:      "Usage: cli blacklist list\n",
 			emulateServerError: false,
 		},
 	}
@@ -1619,7 +1650,14 @@ func TestCLI_initServer(t *testing.T) {
 			args:          []string{"https://192.168.1.0", "A", "B"},
 			expectedCode:  1,
 			server:        "",
-			expectedError: "failed to parse --server flag",
+			expectedError: "--server is required\n",
+		},
+		{
+			name:          "missed --server parameter",
+			args:          []string{"--server"},
+			expectedCode:  1,
+			server:        "",
+			expectedError: "failed to parse --server flag\n",
 		},
 	}
 
@@ -1637,6 +1675,7 @@ func TestCLI_initServer(t *testing.T) {
 			// Проверяем результат
 			assert.Equal(t, tt.expectedCode, code)
 			assert.Equal(t, tt.server, cli.server)
+			assert.Contains(t, stderr.String(), tt.expectedError)
 		})
 	}
 }
