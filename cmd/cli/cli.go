@@ -365,7 +365,7 @@ func (c *CLI) blacklistList() int {
 		return 1
 	}
 
-	resp, err := http.Get(c.server + "/blacklist")
+	resp, err := c.getJSON(c.server + "/blacklist")
 	if err != nil {
 		fmt.Fprintf(c.stderr, "Error: %v\n", err)
 		return 1
