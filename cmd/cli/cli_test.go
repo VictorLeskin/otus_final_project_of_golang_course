@@ -1811,7 +1811,6 @@ func TestCLI_getJSON(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Проверяем метод и путь
 				require.Equal(t, "GET", r.Method)
-				//require.Equal(t, tt.urlPath, r.URL.Path)
 
 				w.WriteHeader(tt.ServerStatusCode)
 				w.Write([]byte(tt.expectedAnswer))
@@ -1824,12 +1823,84 @@ func TestCLI_getJSON(t *testing.T) {
 			}
 
 			// Вызываем тестируемую функцию
+			resp, err := cli.getJSON(server.URL + tt.urlPath)
 
-			urlPath := tt.urlPath
-			if tt.urlPath != "" {
-				urlPath = server.URL + tt.urlPath
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Nil(t, resp)
+				return
 			}
-			resp, err := cli.getJSON(urlPath)
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			defer resp.Body.Close()
+
+			// Проверяем статус
+			assert.Equal(t, tt.ServerStatusCode, resp.StatusCode)
+
+			// Проверяем тело ответа
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedAnswer, string(body))
+		})
+	}
+}
+
+func TestCLI_postJSON(t *testing.T) {
+	tests := []struct {
+		name             string
+		urlPath          string
+		ServerStatusCode int
+		cancel           bool
+		expectedAnswer   string
+		expectedErr      bool
+	}{
+		{
+			name:             "успешный запрос 0",
+			urlPath:          "/whitelist",
+			ServerStatusCode: http.StatusOK,
+			cancel:           false,
+			expectedAnswer:   `{"whitelist":"[192.168.1.0/24,10.0.0.0/8]"}`,
+			expectedErr:      false,
+		},
+		{
+			name:             "constxt cancel",
+			urlPath:          "/whitelist",
+			ServerStatusCode: http.StatusOK,
+			cancel:           true,
+			expectedAnswer:   "",
+			expectedErr:      true,
+		},
+		{
+			name:             "server error",
+			urlPath:          "[::1]",
+			ServerStatusCode: http.StatusBadGateway,
+			cancel:           false,
+			expectedAnswer:   "",
+			expectedErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем тестовый сервер
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Проверяем метод и путь
+				require.Equal(t, "POST", r.Method)
+
+				w.WriteHeader(tt.ServerStatusCode)
+				w.Write([]byte(tt.expectedAnswer))
+			}))
+			defer server.Close()
+
+			cli := NewCLI(nil)
+			if tt.cancel {
+				cli.cancel()
+			}
+
+			// Вызываем тестируемую функцию
+			reqBody := map[string]string{"login": "LG"}
+			resp, err := cli.postJSON(server.URL+tt.urlPath, reqBody)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
