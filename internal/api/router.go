@@ -30,14 +30,14 @@ func (a *API) Router() http.Handler {
 	mux.HandleFunc("POST /reset", a.resetHandler)
 
 	// Белый список
-	mux.HandleFunc("POST /whitelist/add", a.addToWhitelistHandler)
-	mux.HandleFunc("POST /whitelist/remove", a.removeFromWhitelistHandler)
-	mux.HandleFunc("GET /whitelist", a.getWhitelistHandler)
+	mux.HandleFunc("POST /whitelist/add", a.whitelistAddHandler)
+	mux.HandleFunc("POST /whitelist/remove", a.whitelistRemoveHandler)
+	mux.HandleFunc("GET /whitelist", a.whitelistHandler)
 
 	// Черный список
-	mux.HandleFunc("POST /blacklist/add", a.addToBlacklistHandler)
-	mux.HandleFunc("POST /blacklist/remove", a.removeFromBlacklistHandler)
-	mux.HandleFunc("GET /blacklist", a.getBlacklistHandler)
+	mux.HandleFunc("POST /blacklist/add", a.blacklistAddHandler)
+	mux.HandleFunc("POST /blacklist/remove", a.blacklistRemoveHandler)
+	mux.HandleFunc("GET /blacklist", a.blacklistHandler)
 
 	// Статистика (опционально)
 	mux.HandleFunc("GET /stats", a.statsHandler)

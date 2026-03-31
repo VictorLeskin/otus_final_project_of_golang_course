@@ -75,8 +75,8 @@ func (a *API) resetHandler(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// getWhitelistHandler возвращает белый список
-func (a *API) getWhitelistHandler(w http.ResponseWriter, r *http.Request) {
+// whitelistHandler возвращает белый список
+func (a *API) whitelistHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		subnets, err := a.storage.GetAll(r.Context(), models.White)
 		if err != nil {
@@ -88,8 +88,8 @@ func (a *API) getWhitelistHandler(w http.ResponseWriter, r *http.Request) {
 	panic("Not implemented")
 }
 
-// addToWhitelistHandler добавляет подсеть в белый список
-func (a *API) addToWhitelistHandler(w http.ResponseWriter, r *http.Request) {
+// whitelistAddHandler добавляет подсеть в белый список
+func (a *API) whitelistAddHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		var req SubnetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -112,8 +112,8 @@ func (a *API) addToWhitelistHandler(w http.ResponseWriter, r *http.Request) {
 	panic("Not implemented")
 }
 
-// removeFromWhitelistHandler удаляет подсеть из белого списка
-func (a *API) removeFromWhitelistHandler(w http.ResponseWriter, r *http.Request) {
+// whitelistRemoveHandler удаляет подсеть из белого списка
+func (a *API) whitelistRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		var req SubnetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -136,8 +136,8 @@ func (a *API) removeFromWhitelistHandler(w http.ResponseWriter, r *http.Request)
 	panic("Not implemented")
 }
 
-// getBlacklistHandler возвращает черный список
-func (a *API) getBlacklistHandler(w http.ResponseWriter, r *http.Request) {
+// blacklistHandler возвращает черный список
+func (a *API) blacklistHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		subnets, err := a.storage.GetAll(r.Context(), models.Black)
 		if err != nil {
@@ -149,8 +149,8 @@ func (a *API) getBlacklistHandler(w http.ResponseWriter, r *http.Request) {
 	panic("Not implemented")
 }
 
-// addToBlacklistHandler добавляет подсеть в черный список
-func (a *API) addToBlacklistHandler(w http.ResponseWriter, r *http.Request) {
+// blacklistAddHandler добавляет подсеть в черный список
+func (a *API) blacklistAddHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		var req SubnetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -173,8 +173,8 @@ func (a *API) addToBlacklistHandler(w http.ResponseWriter, r *http.Request) {
 	panic("Not implemented")
 }
 
-// removeFromBlacklistHandler удаляет подсеть из черного списка
-func (a *API) removeFromBlacklistHandler(w http.ResponseWriter, r *http.Request) {
+// blacklistRemoveHandler удаляет подсеть из черного списка
+func (a *API) blacklistRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		var req SubnetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
