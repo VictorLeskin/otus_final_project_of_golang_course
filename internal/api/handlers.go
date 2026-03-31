@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
 )
 
 // CheckRequest запрос на проверку авторизации
@@ -36,6 +38,13 @@ type ListResponse struct {
 // ErrorResponse ответ с ошибкой
 type ErrorResponse struct {
 	Error string `json:"error"`
+}
+
+func CreateIPList(subnet string, isWhite models.ListType) models.IPList {
+	return models.IPList{
+		Subnet:  subnet,
+		IsWhite: isWhite,
+	}
 }
 
 // checkHandler проверяет авторизацию
@@ -151,26 +160,23 @@ func (a *API) blacklistHandler(w http.ResponseWriter, r *http.Request) {
 
 // blacklistAddHandler добавляет подсеть в черный список
 func (a *API) blacklistAddHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-		var req SubnetRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			sendError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
+	var req SubnetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
 
-		if req.Subnet == "" {
-			sendError(w, http.StatusBadRequest, "subnet is required")
-			return
-		}
+	if req.Subnet == "" {
+		sendError(w, http.StatusBadRequest, "subnet is required")
+		return
+	}
 
-		err := a.storage.Add(r.Context(), models.Black, req.Subnet)
-		if err != nil {
-			sendError(w, http.StatusInternalServerError, "failed to add to blacklist")
-			return
-		}
-		sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	*/
-	panic("Not implemented")
+	err := a.storage.Add(r.Context(), CreateIPList(req.Subnet, models.Black))
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "failed to add to blacklist")
+		return
+	}
+	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // blacklistRemoveHandler удаляет подсеть из черного списка
