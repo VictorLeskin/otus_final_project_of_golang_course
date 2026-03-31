@@ -19,18 +19,18 @@ func TestBucket_NewBucketCollection(t *testing.T) {
 func TestBucket_DefaultConfig(t *testing.T) {
 	t0 := DefaultConfig()
 
-	assert.Equal(t, 10, t0.loginRate)
-	assert.Equal(t, 100, t0.passwordRate)
-	assert.NotNil(t, 1000, t0.ipRate)
+	assert.Equal(t, 10, t0.LoginRate)
+	assert.Equal(t, 100, t0.PasswordRate)
+	assert.NotNil(t, 1000, t0.IPRate)
 	assert.NotNil(t, 60, t0.CleanupInterval)
 }
 
 func TestNewBucketManager_WithConfig(t *testing.T) {
 	// Arrange
 	config := &Config{
-		loginRate:       20,
-		passwordRate:    200,
-		ipRate:          2000,
+		LoginRate:       20,
+		PasswordRate:    200,
+		IPRate:          2000,
 		CleanupInterval: 30 * time.Second,
 	}
 
@@ -43,9 +43,9 @@ func TestNewBucketManager_WithConfig(t *testing.T) {
 	assert.Equal(t, config, manager.config) // тот же объект, не копия
 
 	// Проверяем, что коллекции созданы с правильными параметрами
-	assert.Equal(t, config.loginRate, manager.loginBuckets.capacity)
-	assert.Equal(t, config.passwordRate, manager.passwordBuckets.capacity)
-	assert.Equal(t, config.ipRate, manager.ipBuckets.capacity)
+	assert.Equal(t, config.LoginRate, manager.loginBuckets.capacity)
+	assert.Equal(t, config.PasswordRate, manager.passwordBuckets.capacity)
+	assert.Equal(t, config.IPRate, manager.ipBuckets.capacity)
 
 	// Проверяем leakRate (60000 / rate)
 	assert.Equal(t, 3000, manager.loginBuckets.leakRateMillis)   // 60000/20
@@ -66,9 +66,9 @@ func TestNewBucketManager_WithNilConfig(t *testing.T) {
 
 	// Проверяем, что использованы значения по умолчанию
 	defaultConfig := DefaultConfig()
-	assert.Equal(t, defaultConfig.loginRate, manager.config.loginRate)
-	assert.Equal(t, defaultConfig.passwordRate, manager.config.passwordRate)
-	assert.Equal(t, defaultConfig.ipRate, manager.config.ipRate)
+	assert.Equal(t, defaultConfig.LoginRate, manager.config.LoginRate)
+	assert.Equal(t, defaultConfig.PasswordRate, manager.config.PasswordRate)
+	assert.Equal(t, defaultConfig.IPRate, manager.config.IPRate)
 	assert.Equal(t, defaultConfig.CleanupInterval, manager.config.CleanupInterval)
 }
 
@@ -103,7 +103,7 @@ func TestNewBucketManager_StartedCleanup(t *testing.T) {
 	// count buckets in loginBuckets
 	assert.Equal(t, 1, dropsInBucket(manager.loginBuckets.buckets))
 
-	// Ждем утечки (leakRate=6000ms для loginRate=10)
+	// Ждем утечки (leakRate=6000ms для LoginRate=10)
 	time.Sleep(1 * time.Second)        // вода утекла
 	time.Sleep(100 * time.Millisecond) // cleanup
 
@@ -154,9 +154,9 @@ func TestBucketManager_BucketStats(t *testing.T) {
 
 func TestNewBucketManager_cleanupCollection(t *testing.T) {
 	config := &Config{
-		loginRate:       60,
-		passwordRate:    60,
-		ipRate:          60,
+		LoginRate:       60,
+		PasswordRate:    60,
+		IPRate:          60,
 		CleanupInterval: 2 * time.Second,
 	}
 
@@ -206,9 +206,9 @@ func TestNewBucketManager_cleanupCollection(t *testing.T) {
 
 func TestNewBucketManager_cleanup(t *testing.T) {
 	config := &Config{
-		loginRate:       200,
-		passwordRate:    200,
-		ipRate:          200,
+		LoginRate:       200,
+		PasswordRate:    200,
+		IPRate:          200,
 		CleanupInterval: 20 * time.Millisecond,
 	}
 

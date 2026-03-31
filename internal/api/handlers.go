@@ -35,6 +35,11 @@ type ListResponse struct {
 	Subnets []string `json:"subnets"`
 }
 
+// SuccessfulResponse ответ с ошибкой
+type SuccessfulResponse struct {
+	Status string `json:"status"`
+}
+
 // ErrorResponse ответ с ошибкой
 type ErrorResponse struct {
 	Error string `json:"error"`
