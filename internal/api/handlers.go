@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
 )
 
 // CheckRequest запрос на проверку авторизации
@@ -79,112 +77,133 @@ func (a *API) resetHandler(w http.ResponseWriter, r *http.Request) {
 
 // getWhitelistHandler возвращает белый список
 func (a *API) getWhitelistHandler(w http.ResponseWriter, r *http.Request) {
-	subnets, err := a.storage.GetAll(r.Context(), models.White)
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to get whitelist")
-		return
-	}
-	sendJSON(w, http.StatusOK, ListResponse{Subnets: subnets})
+	/*
+		subnets, err := a.storage.GetAll(r.Context(), models.White)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to get whitelist")
+			return
+		}
+		sendJSON(w, http.StatusOK, ListResponse{Subnets: subnets})
+	*/
+	panic("Not implemented")
 }
 
 // addToWhitelistHandler добавляет подсеть в белый список
 func (a *API) addToWhitelistHandler(w http.ResponseWriter, r *http.Request) {
-	var req SubnetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+	/*
+		var req SubnetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
 
-	if req.Subnet == "" {
-		sendError(w, http.StatusBadRequest, "subnet is required")
-		return
-	}
+		if req.Subnet == "" {
+			sendError(w, http.StatusBadRequest, "subnet is required")
+			return
+		}
 
-	err := a.storage.Add(r.Context(), models.White, req.Subnet)
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to add to whitelist")
-		return
-	}
-	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		err := a.storage.Add(r.Context(), models.White, req.Subnet)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to add to whitelist")
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	*/
+	panic("Not implemented")
 }
 
 // removeFromWhitelistHandler удаляет подсеть из белого списка
 func (a *API) removeFromWhitelistHandler(w http.ResponseWriter, r *http.Request) {
-	var req SubnetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+	/*
+		var req SubnetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
 
-	if req.Subnet == "" {
-		sendError(w, http.StatusBadRequest, "subnet is required")
-		return
-	}
+		if req.Subnet == "" {
+			sendError(w, http.StatusBadRequest, "subnet is required")
+			return
+		}
 
-	err := a.storage.Remove(r.Context(), models.White, req.Subnet)
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to remove from whitelist")
-		return
-	}
-	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		err := a.storage.Remove(r.Context(), models.White, req.Subnet)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to remove from whitelist")
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	*/
+	panic("Not implemented")
 }
 
 // getBlacklistHandler возвращает черный список
 func (a *API) getBlacklistHandler(w http.ResponseWriter, r *http.Request) {
-	subnets, err := a.storage.GetAll(r.Context(), models.Black)
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to get blacklist")
-		return
-	}
-	sendJSON(w, http.StatusOK, ListResponse{Subnets: subnets})
+	/*
+		subnets, err := a.storage.GetAll(r.Context(), models.Black)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to get blacklist")
+			return
+		}
+		sendJSON(w, http.StatusOK, ListResponse{Subnets: subnets})
+	*/
+	panic("Not implemented")
 }
 
 // addToBlacklistHandler добавляет подсеть в черный список
 func (a *API) addToBlacklistHandler(w http.ResponseWriter, r *http.Request) {
-	var req SubnetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+	/*
+		var req SubnetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
 
-	if req.Subnet == "" {
-		sendError(w, http.StatusBadRequest, "subnet is required")
-		return
-	}
+		if req.Subnet == "" {
+			sendError(w, http.StatusBadRequest, "subnet is required")
+			return
+		}
 
-	err := a.storage.Add(r.Context(), models.Black, req.Subnet)
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to add to blacklist")
-		return
-	}
-	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		err := a.storage.Add(r.Context(), models.Black, req.Subnet)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to add to blacklist")
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	*/
+	panic("Not implemented")
 }
 
 // removeFromBlacklistHandler удаляет подсеть из черного списка
 func (a *API) removeFromBlacklistHandler(w http.ResponseWriter, r *http.Request) {
-	var req SubnetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+	/*
+		var req SubnetRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			sendError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
 
-	if req.Subnet == "" {
-		sendError(w, http.StatusBadRequest, "subnet is required")
-		return
-	}
+		if req.Subnet == "" {
+			sendError(w, http.StatusBadRequest, "subnet is required")
+			return
+		}
 
-	err := a.storage.Remove(r.Context(), models.Black, req.Subnet)
-	if err != nil {
-		sendError(w, http.StatusInternalServerError, "failed to remove from blacklist")
-		return
-	}
-	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		err := a.storage.Remove(r.Context(), models.Black, req.Subnet)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "failed to remove from blacklist")
+			return
+		}
+		sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	*/
+	panic("Not implemented")
 }
 
 // statsHandler возвращает статистику по bucket'ам
 func (a *API) statsHandler(w http.ResponseWriter, r *http.Request) {
-	stats := a.bucketManager.GetStats()
-	sendJSON(w, http.StatusOK, stats)
+	/*
+		stats := a.bucketManager.GetStats()
+		sendJSON(w, http.StatusOK, stats)+
+	*/
+	panic("Not implemented")
 }
 
 // Вспомогательные функции
