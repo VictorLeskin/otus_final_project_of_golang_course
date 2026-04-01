@@ -59,6 +59,13 @@ func RequestBody(t *testing.T, requestBody map[string]string) []byte {
 	return body
 }
 
+func checkErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedError string) {
+	var resp ErrorResponse
+	err := json.NewDecoder(w.Body).Decode(&resp)
+	require.NoError(t, err)
+	assert.Contains(t, resp.Error, expectedError)
+}
+
 // TestBlacklistAddHandler тестирует добавление подсети в черный список
 func TestAPI_blacklistAddHandler(t *testing.T) {
 	tests := []struct {
@@ -131,10 +138,7 @@ func TestAPI_blacklistAddHandler(t *testing.T) {
 
 			if tt.expectedError != "" {
 				// Проверяем тело ответа
-				var resp ErrorResponse
-				err := json.NewDecoder(w.Body).Decode(&resp)
-				require.NoError(t, err)
-				assert.Contains(t, resp.Error, tt.expectedError)
+				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
@@ -223,10 +227,7 @@ func TestAPI_blacklistRemoveHandler(t *testing.T) {
 
 			if tt.expectedError != "" {
 				// Проверяем тело ответа
-				var resp ErrorResponse
-				err := json.NewDecoder(w.Body).Decode(&resp)
-				require.NoError(t, err)
-				assert.Contains(t, resp.Error, tt.expectedError)
+				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
@@ -236,6 +237,324 @@ func TestAPI_blacklistRemoveHandler(t *testing.T) {
 				subnets, _ := memStorage.GetAll(context.Background())
 				equalIPLists(t, subnets, []models.IPList{
 					models.IPList{Subnet: "100.101.102.103/31", IsWhite: false},
+				})
+			}
+		})
+	}
+}
+
+func TestAPI_blacklistHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		expectedStatus int
+		expectedError  string
+		cancel         bool
+	}{
+		{
+			name:           "succsessful",
+			expectedStatus: http.StatusOK,
+			expectedError:  "",
+			cancel:         false,
+		},
+		{
+			name:           "server send error",
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  "failed to get blacklist",
+			cancel:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: false})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "110.111.112.113/31", IsWhite: true})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: false})
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: CreateTestBucketManager(),
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			ctx1, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tt.cancel {
+				cancel() // run cancel to cause server error
+			}
+
+			req := httptest.NewRequestWithContext(ctx1, "GET", "/blacklist", nil)
+			w := httptest.NewRecorder()
+
+			req.Context()
+
+			// Вызываем handler
+			api.blacklistHandler(w, req)
+
+			// Проверяем статус
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedError != "" {
+				// Проверяем тело ответа
+				checkErrorResponse(t, w, tt.expectedError)
+			} else {
+				var resp SuccessfulResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+
+				subnets, _ := memStorage.GetAll(context.Background())
+				equalIPLists(t, subnets, []models.IPList{
+					models.IPList{Subnet: "100.101.102.103/31", IsWhite: false},
+					models.IPList{Subnet: "192.168.1.0/24", IsWhite: false},
+				})
+			}
+		})
+	}
+}
+
+func TestAPI_whitelistAddHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    map[string]string
+		expectedStatus int
+		expectedError  string
+	}{
+		{
+			name: "succsessful",
+			requestBody: map[string]string{
+				"subnet": "192.168.1.0/24",
+			},
+			expectedStatus: http.StatusOK,
+			expectedError:  "",
+		},
+		{
+			name: "empty subnet",
+			requestBody: map[string]string{
+				"subnet": "",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "subnet is required",
+		},
+		{
+			name: "wrong JSON",
+			requestBody: map[string]string{
+				"wrong": "value",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "subnet is required",
+		},
+		{
+			name:           "missed request",
+			requestBody:    nil,
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "invalid request body",
+		},
+		{
+			name: "ошибка при добавлении в storage",
+			requestBody: map[string]string{
+				"subnet": "invalid-subnet",
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  "failed to add to whitelist",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: CreateTestBucketManager(),
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			body := RequestBody(t, tt.requestBody)
+			req := httptest.NewRequest("POST", "/whitelist/add", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			// Вызываем handler
+			api.whitelistAddHandler(w, req)
+
+			// Проверяем статус
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedError != "" {
+				// Проверяем тело ответа
+				checkErrorResponse(t, w, tt.expectedError)
+			} else {
+				var resp SuccessfulResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+
+				subnets, _ := memStorage.GetAll(context.Background())
+				equalIPLists(t, subnets, []models.IPList{
+					models.IPList{Subnet: "192.168.1.0/24", IsWhite: true},
+				})
+			}
+		})
+	}
+}
+
+func TestAPI_whitelistRemoveHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    map[string]string
+		expectedStatus int
+		expectedError  string
+	}{
+		{
+			name: "succsessful",
+			requestBody: map[string]string{
+				"subnet": "192.168.1.0/24",
+			},
+			expectedStatus: http.StatusOK,
+			expectedError:  "",
+		},
+		{
+			name: "empty subnet",
+			requestBody: map[string]string{
+				"subnet": "",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "subnet is required",
+		},
+		{
+			name: "wrong JSON",
+			requestBody: map[string]string{
+				"wrong": "value",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "subnet is required",
+		},
+		{
+			name:           "missed request",
+			requestBody:    nil,
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "invalid request body",
+		},
+		{
+			name: "ошибка при добавлении в storage",
+			requestBody: map[string]string{
+				"subnet": "invalid-subnet",
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  "failed to remove from whitelist",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: true})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: true})
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: CreateTestBucketManager(),
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			body := RequestBody(t, tt.requestBody)
+			req := httptest.NewRequest("POST", "/whitelist/remove", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			// Вызываем handler
+			api.whitelistRemoveHandler(w, req)
+
+			// Проверяем статус
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedError != "" {
+				// Проверяем тело ответа
+				checkErrorResponse(t, w, tt.expectedError)
+			} else {
+				var resp SuccessfulResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+
+				subnets, _ := memStorage.GetAll(context.Background())
+				equalIPLists(t, subnets, []models.IPList{
+					models.IPList{Subnet: "100.101.102.103/31", IsWhite: false},
+				})
+			}
+		})
+	}
+}
+
+func TestAPI_whitelistHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		expectedStatus int
+		expectedError  string
+		cancel         bool
+	}{
+		{
+			name:           "succsessful",
+			expectedStatus: http.StatusOK,
+			expectedError:  "",
+			cancel:         false,
+		},
+		{
+			name:           "server send error",
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  "failed to get whitelist",
+			cancel:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: true})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "110.111.112.113/31", IsWhite: false})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: true})
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: CreateTestBucketManager(),
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			ctx1, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tt.cancel {
+				cancel() // run cancel to cause server error
+			}
+
+			req := httptest.NewRequestWithContext(ctx1, "GET", "/whitelist", nil)
+			w := httptest.NewRecorder()
+
+			req.Context()
+
+			// Вызываем handler
+			api.whitelistHandler(w, req)
+
+			// Проверяем статус
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedError != "" {
+				// Проверяем тело ответа
+				checkErrorResponse(t, w, tt.expectedError)
+			} else {
+				var resp SuccessfulResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+
+				subnets, _ := memStorage.GetAll(context.Background())
+				equalIPLists(t, subnets, []models.IPList{
+					models.IPList{Subnet: "100.101.102.103/31", IsWhite: true},
+					models.IPList{Subnet: "192.168.1.0/24", IsWhite: true},
 				})
 			}
 		})
