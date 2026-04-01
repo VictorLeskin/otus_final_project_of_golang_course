@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,41 +14,38 @@ import (
 
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/bucket"
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
-	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage"
+	memorystorage "github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/memory"
 )
 
-// mockStorage для тестов
-type mockStorage struct {
-	storage.IPListStorage
-	addFunc    func(ctx context.Context, l models.IPList) error
-	removeFunc func(ctx context.Context, l models.IPList) error
-	getAllFunc func(ctx context.Context, listType models.ListType) ([]string, error)
-}
-
-func (m *mockStorage) Add(ctx context.Context, l models.IPList) error {
-	if m.addFunc != nil {
-		return m.addFunc(ctx, l)
+// equalIPLists сравнивает два списка IPList по Subnet и IsWhite (игнорирует ID и CreatedAt)
+func equalIPLists(got, want []models.IPList) bool {
+	if len(got) != len(want) {
+		return false
 	}
-	return nil
-}
 
-func (m *mockStorage) Remove(ctx context.Context, l models.IPList) error {
-	if m.removeFunc != nil {
-		return m.removeFunc(ctx, l)
+	// Создаем map для быстрого поиска
+	gotMap := make(map[string]bool)
+	for _, item := range got {
+		key := fmt.Sprintf("%s:%t", item.Subnet, item.IsWhite)
+		gotMap[key] = true
 	}
-	return nil
-}
 
-func (m *mockStorage) Close() error {
-	return nil
+	// Проверяем, что все ожидаемые элементы есть
+	for _, item := range want {
+		key := fmt.Sprintf("%s:%t", item.Subnet, item.IsWhite)
+		if !gotMap[key] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // TestBlacklistAddHandler тестирует добавление подсети в черный список
-func TestBlacklistAddHandler(t *testing.T) {
+func TestAPI_blacklistAddHandler(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    map[string]string
-		mockAddFunc    func(ctx context.Context, l models.IPList) error
 		expectedStatus int
 		expectedError  string
 	}{
@@ -56,60 +54,45 @@ func TestBlacklistAddHandler(t *testing.T) {
 			requestBody: map[string]string{
 				"subnet": "192.168.1.0/24",
 			},
-			mockAddFunc: func(ctx context.Context, l models.IPList) error {
-				assert.Equal(t, "192.168.1.0/24", l.Subnet)
-				assert.Equal(t, models.Black, l.IsWhite)
-				return nil
-			},
 			expectedStatus: http.StatusOK,
 			expectedError:  "",
 		},
-		/*
-			{
-				name: "пустой subnet",
-				requestBody: map[string]string{
-					"subnet": "",
-				},
-				mockAddFunc:    nil,
-				expectedStatus: http.StatusBadRequest,
-				expectedError:  "subnet is required",
+		{
+			name: "empty subnet",
+			requestBody: map[string]string{
+				"subnet": "",
 			},
-			{
-				name: "отсутствует поле subnet",
-				requestBody: map[string]string{
-					"wrong": "value",
-				},
-				mockAddFunc:    nil,
-				expectedStatus: http.StatusBadRequest,
-				expectedError:  "subnet is required",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "subnet is required",
+		},
+		{
+			name: "wrong JSON",
+			requestBody: map[string]string{
+				"wrong": "value",
 			},
-			{
-				name:           "пустое тело запроса",
-				requestBody:    nil,
-				mockAddFunc:    nil,
-				expectedStatus: http.StatusBadRequest,
-				expectedError:  "invalid request body",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "subnet is required",
+		},
+		{
+			name:           "missed request",
+			requestBody:    nil,
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  "invalid request body",
+		},
+		{
+			name: "ошибка при добавлении в storage",
+			requestBody: map[string]string{
+				"subnet": "invalid-subnet",
 			},
-			{
-				name: "ошибка при добавлении в storage",
-				requestBody: map[string]string{
-					"subnet": "invalid-subnet",
-				},
-				mockAddFunc: func(ctx context.Context, listType models.ListType, subnet string) error {
-					return assert.AnError
-				},
-				expectedStatus: http.StatusInternalServerError,
-				expectedError:  "failed to add to blacklist",
-			},
-		*/
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  "failed to add to blacklist",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем мок storage
-			mockSt := &mockStorage{
-				addFunc: tt.mockAddFunc,
-			}
+			memStorage := memorystorage.New()
 
 			// Создаем API с моком
 			api := &API{
@@ -118,7 +101,7 @@ func TestBlacklistAddHandler(t *testing.T) {
 					PasswordRate: 100,
 					IPRate:       1000,
 				}),
-				storage: mockSt,
+				storage: memStorage,
 			}
 
 			// Формируем запрос
@@ -149,6 +132,11 @@ func TestBlacklistAddHandler(t *testing.T) {
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
 				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+
+				subnets, _ := memStorage.GetAll(context.Background())
+				assert.True(t, equalIPLists(subnets, []models.IPList{
+					models.IPList{Subnet: "192.168.1.0/24", IsWhite: false},
+				}))
 			}
 		})
 	}

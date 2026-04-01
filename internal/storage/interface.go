@@ -33,7 +33,7 @@ type IPListStorage interface {
 	IsIPAuthorized(ctx context.Context, ip string) (bool, error)
 
 	// Close закрывает соединение
-	Close() error
+	Close(ctx context.Context) error
 }
 
 var (
