@@ -186,26 +186,23 @@ func (a *API) blacklistAddHandler(w http.ResponseWriter, r *http.Request) {
 
 // blacklistRemoveHandler удаляет подсеть из черного списка
 func (a *API) blacklistRemoveHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-		var req SubnetRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			sendError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
+	var req SubnetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
 
-		if req.Subnet == "" {
-			sendError(w, http.StatusBadRequest, "subnet is required")
-			return
-		}
+	if req.Subnet == "" {
+		sendError(w, http.StatusBadRequest, "subnet is required")
+		return
+	}
 
-		err := a.storage.Remove(r.Context(), models.Black, req.Subnet)
-		if err != nil {
-			sendError(w, http.StatusInternalServerError, "failed to remove from blacklist")
-			return
-		}
-		sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	*/
-	panic("Not implemented")
+	err := a.storage.Remove(r.Context(), CreateIPList(req.Subnet, models.Black))
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "failed to remove from blacklist")
+		return
+	}
+	sendJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // statsHandler возвращает статистику по bucket'ам
