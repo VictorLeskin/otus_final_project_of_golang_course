@@ -62,7 +62,10 @@ func (req CheckRequest) validate() bool {
 // checkHandler проверяет авторизацию
 func (a *API) checkHandler(w http.ResponseWriter, r *http.Request) {
 	var req CheckRequest
-	_ = json.NewDecoder(r.Body).Decode(&req) // ошибку отолвит req.validate() потомучто при ошибку все три поля будут пучтыми
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
 
 	// Валидация
 	if !req.validate() {
@@ -218,11 +221,8 @@ func (a *API) blacklistRemoveHandler(w http.ResponseWriter, r *http.Request) {
 
 // statsHandler возвращает статистику по bucket'ам
 func (a *API) statsHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-		stats := a.bucketManager.GetStats()
-		sendJSON(w, http.StatusOK, stats)+
-	*/
-	panic("Not implemented")
+	stats := a.bucketManager.Stats()
+	sendJSON(w, http.StatusOK, stats)
 }
 
 // Вспомогательные функции

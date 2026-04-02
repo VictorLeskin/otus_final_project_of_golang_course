@@ -657,7 +657,7 @@ func TestAPI_checkHandler(t *testing.T) {
 			requestBody:    nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedOK:     false,
-			expectedError:  "login, password and ip are required",
+			expectedError:  "invalid request body",
 		},
 	}
 
@@ -689,6 +689,9 @@ func TestAPI_checkHandler(t *testing.T) {
 
 			// Формируем запрос
 			body, _ := json.Marshal(tt.requestBody)
+			if tt.requestBody == nil {
+				body = nil
+			}
 			req := httptest.NewRequestWithContext(ctx1, "POST", "/check", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
@@ -764,6 +767,70 @@ func TestAPI_checkHandler_login_bucket_is_full(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, res, resp.OK)
 			}
+		})
+	}
+}
+
+func TestAPI_resetHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    map[string]string
+		expectedStatus int
+		expectedOK     bool
+		expectedError  string
+	}{
+		{
+			name: "successful reset of login bucket",
+			requestBody: map[string]string{
+				"login": "user0",
+			},
+			expectedStatus: http.StatusOK,
+			expectedOK:     true,
+			expectedError:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+
+			bm := bucket.NewBucketManager(&bucket.Config{
+				LoginRate:    10,
+				PasswordRate: 100,
+				IPRate:       1000,
+			})
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: bm,
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			body, _ := json.Marshal(tt.requestBody)
+			if tt.requestBody == nil {
+				body = nil
+			}
+			req := httptest.NewRequest("POST", "/reset", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			// Вызываем handler
+			api.resetHandler(w, req)
+
+			// Проверяем статус
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			// Проверяем ответ
+			if tt.expectedError != "" {
+				checkErrorResponse(t, w, tt.expectedError)
+			} else {
+				var resp SuccessfulResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+			}
+
 		})
 	}
 }
