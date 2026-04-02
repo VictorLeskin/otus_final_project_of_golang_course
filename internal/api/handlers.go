@@ -52,6 +52,13 @@ func CreateIPList(subnet string, isWhite models.ListType) models.IPList {
 	}
 }
 
+func (req CheckRequest) validate() bool {
+	if req.Login == "" || req.Password == "" || req.IP == "" {
+		return false
+	}
+	return true
+}
+
 // checkHandler проверяет авторизацию
 func (a *API) checkHandler(w http.ResponseWriter, r *http.Request) {
 	var req CheckRequest
@@ -61,14 +68,26 @@ func (a *API) checkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Валидация
-	if req.Login == "" || req.Password == "" || req.IP == "" {
+	if !req.validate() {
 		sendError(w, http.StatusBadRequest, "login, password and ip are required")
 		return
 	}
 
-	// Проверяем через bucketManager
-	ok := a.bucketManager.CheckAuth(req.Login, req.Password, req.IP)
+	// Проверяем IP по white/black спискам
+	authorized, err := a.storage.IsIPAuthorized(r.Context(), req.IP)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "failed to check IP authorization")
+		return
+	}
 
+	// Если IP в blacklist → false, если в whitelist → true
+	if !authorized {
+		sendJSON(w, http.StatusOK, CheckResponse{OK: false})
+		return
+	}
+
+	// Если IP в whitelist или не в списках — проверяем rate limiter
+	ok := a.bucketManager.CheckAuth(req.Login, req.Password, req.IP)
 	sendJSON(w, http.StatusOK, CheckResponse{OK: ok})
 }
 

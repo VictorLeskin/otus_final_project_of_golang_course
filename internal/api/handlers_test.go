@@ -66,6 +66,41 @@ func checkErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedErro
 	assert.Contains(t, resp.Error, expectedError)
 }
 
+func TestCheckRequest_validate(t *testing.T) {
+	{
+		t0 := CheckRequest{
+			Login:    "login",
+			Password: "password",
+			IP:       "IP",
+		}
+		assert.True(t, t0.validate())
+	}
+	{
+		t0 := CheckRequest{
+			Login:    "",
+			Password: "password",
+			IP:       "IP",
+		}
+		assert.False(t, t0.validate())
+	}
+	{
+		t0 := CheckRequest{
+			Login:    "login",
+			Password: "",
+			IP:       "IP",
+		}
+		assert.False(t, t0.validate())
+	}
+	{
+		t0 := CheckRequest{
+			Login:    "login",
+			Password: "password",
+			IP:       "",
+		}
+		assert.False(t, t0.validate())
+	}
+}
+
 // TestBlacklistAddHandler тестирует добавление подсети в черный список
 func TestAPI_blacklistAddHandler(t *testing.T) {
 	tests := []struct {
@@ -556,6 +591,127 @@ func TestAPI_whitelistHandler(t *testing.T) {
 					models.IPList{Subnet: "100.101.102.103/31", IsWhite: true},
 					models.IPList{Subnet: "192.168.1.0/24", IsWhite: true},
 				})
+			}
+		})
+	}
+}
+
+func TestCheckHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    map[string]string
+		expectedStatus int
+		expectedOK     bool
+		expectedError  string
+	}{
+		{
+			name: "успешная проверка - IP не в списках, лимиты не превышены",
+			requestBody: map[string]string{
+				"login":    "user0",
+				"password": "password0",
+				"ip":       "100.101.102.103",
+			},
+			expectedStatus: http.StatusOK,
+			expectedOK:     true,
+			expectedError:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+
+			bm := bucket.NewBucketManager(&bucket.Config{
+				LoginRate:    2,
+				PasswordRate: 100,
+				IPRate:       1000,
+			})
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: bm,
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			for i := 0; i < 3; i++ {
+				body, _ := json.Marshal(tt.requestBody)
+				req := httptest.NewRequest("POST", "/check", bytes.NewReader(body))
+				w := httptest.NewRecorder()
+
+				// Вызываем handler
+				api.checkHandler(w, req)
+
+				// Проверяем статус
+				assert.Equal(t, tt.expectedStatus, w.Code)
+
+				// Проверяем ответ
+				if tt.expectedError != "" {
+					checkErrorResponse(t, w, tt.expectedError)
+				} else {
+					var resp CheckResponse
+					err := json.NewDecoder(w.Body).Decode(&resp)
+					require.NoError(t, err)
+					assert.Equal(t, tt.expectedOK, resp.OK)
+				}
+			}
+
+		})
+	}
+}
+
+func TestCheckHandler_login_bucket_is_full(t *testing.T) {
+	tests := []struct {
+		name               string
+		requestBody        map[string]string
+		expectedRunResults []bool
+	}{
+		{
+			name: "последняя проверка не проходит потому что лимиты превышены",
+			requestBody: map[string]string{
+				"login":    "user0",
+				"password": "password0",
+				"ip":       "100.101.102.103",
+			},
+			expectedRunResults: []bool{true, true, false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Создаем мок storage
+			memStorage := memorystorage.New()
+
+			bm := bucket.NewBucketManager(&bucket.Config{
+				LoginRate:    2,
+				PasswordRate: 100,
+				IPRate:       1000,
+			})
+
+			// Создаем API с моком
+			api := &API{
+				bucketManager: bm,
+				storage:       memStorage,
+			}
+
+			// Формируем запрос
+			for _, res := range tt.expectedRunResults {
+				body, _ := json.Marshal(tt.requestBody)
+				req := httptest.NewRequest("POST", "/check", bytes.NewReader(body))
+				w := httptest.NewRecorder()
+
+				// Вызываем handler
+				api.checkHandler(w, req)
+
+				// Проверяем статус
+				assert.Equal(t, http.StatusOK, w.Code)
+
+				// Проверяем ответ
+				var resp CheckResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+				assert.Equal(t, res, resp.OK)
 			}
 		})
 	}
