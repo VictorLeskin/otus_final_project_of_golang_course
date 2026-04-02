@@ -62,10 +62,7 @@ func (req CheckRequest) validate() bool {
 // checkHandler проверяет авторизацию
 func (a *API) checkHandler(w http.ResponseWriter, r *http.Request) {
 	var req CheckRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+	_ = json.NewDecoder(r.Body).Decode(&req) // ошибку отолвит req.validate() потомучто при ошибку все три поля будут пучтыми
 
 	// Валидация
 	if !req.validate() {

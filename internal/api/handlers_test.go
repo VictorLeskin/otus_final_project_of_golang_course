@@ -66,7 +66,7 @@ func checkErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedErro
 	assert.Contains(t, resp.Error, expectedError)
 }
 
-func TestCheckRequest_validate(t *testing.T) {
+func TestAPI_checkRequest_validate(t *testing.T) {
 	{
 		t0 := CheckRequest{
 			Login:    "login",
@@ -322,8 +322,6 @@ func TestAPI_blacklistHandler(t *testing.T) {
 
 			req := httptest.NewRequestWithContext(ctx1, "GET", "/blacklist", nil)
 			w := httptest.NewRecorder()
-
-			req.Context()
 
 			// Вызываем handler
 			api.blacklistHandler(w, req)
@@ -596,16 +594,18 @@ func TestAPI_whitelistHandler(t *testing.T) {
 	}
 }
 
-func TestCheckHandler(t *testing.T) {
+func TestAPI_checkHandler(t *testing.T) {
 	tests := []struct {
 		name           string
+		cancel         bool
 		requestBody    map[string]string
 		expectedStatus int
 		expectedOK     bool
 		expectedError  string
 	}{
 		{
-			name: "успешная проверка - IP не в списках, лимиты не превышены",
+			name:   "успешная проверка - IP не в списках, лимиты не превышены",
+			cancel: false,
 			requestBody: map[string]string{
 				"login":    "user0",
 				"password": "password0",
@@ -615,15 +615,62 @@ func TestCheckHandler(t *testing.T) {
 			expectedOK:     true,
 			expectedError:  "",
 		},
+		{
+			name:   "not authorized from black list",
+			cancel: false,
+			requestBody: map[string]string{
+				"login":    "user1",
+				"password": "password1",
+				"ip":       "110.111.112.103",
+			},
+			expectedStatus: http.StatusOK,
+			expectedOK:     false,
+			expectedError:  "",
+		},
+		{
+			name:   "failed because context ",
+			cancel: true,
+			requestBody: map[string]string{
+				"login":    "user0",
+				"password": "password0",
+				"ip":       "100.101.102.103",
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedOK:     false,
+			expectedError:  "failed to check IP authorization",
+		},
+		{
+			name:   "failed missed login",
+			cancel: false,
+			requestBody: map[string]string{
+				"login":    "",
+				"password": "password0",
+				"ip":       "100.101.102.103",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedOK:     false,
+			expectedError:  "login, password and ip are required",
+		},
+		{
+			name:           "missed request",
+			cancel:         false,
+			requestBody:    nil,
+			expectedStatus: http.StatusBadRequest,
+			expectedOK:     false,
+			expectedError:  "login, password and ip are required",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Создаем мок storage
 			memStorage := memorystorage.New()
+			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/24", IsWhite: true})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "110.111.112.113/24", IsWhite: false})
+			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: true})
 
 			bm := bucket.NewBucketManager(&bucket.Config{
-				LoginRate:    2,
+				LoginRate:    10,
 				PasswordRate: 100,
 				IPRate:       1000,
 			})
@@ -634,34 +681,38 @@ func TestCheckHandler(t *testing.T) {
 				storage:       memStorage,
 			}
 
+			ctx1, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tt.cancel {
+				cancel() // run cancel to cause server error
+			}
+
 			// Формируем запрос
-			for i := 0; i < 3; i++ {
-				body, _ := json.Marshal(tt.requestBody)
-				req := httptest.NewRequest("POST", "/check", bytes.NewReader(body))
-				w := httptest.NewRecorder()
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequestWithContext(ctx1, "POST", "/check", bytes.NewReader(body))
+			w := httptest.NewRecorder()
 
-				// Вызываем handler
-				api.checkHandler(w, req)
+			// Вызываем handler
+			api.checkHandler(w, req)
 
-				// Проверяем статус
-				assert.Equal(t, tt.expectedStatus, w.Code)
+			// Проверяем статус
+			assert.Equal(t, tt.expectedStatus, w.Code)
 
-				// Проверяем ответ
-				if tt.expectedError != "" {
-					checkErrorResponse(t, w, tt.expectedError)
-				} else {
-					var resp CheckResponse
-					err := json.NewDecoder(w.Body).Decode(&resp)
-					require.NoError(t, err)
-					assert.Equal(t, tt.expectedOK, resp.OK)
-				}
+			// Проверяем ответ
+			if tt.expectedError != "" {
+				checkErrorResponse(t, w, tt.expectedError)
+			} else {
+				var resp CheckResponse
+				err := json.NewDecoder(w.Body).Decode(&resp)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedOK, resp.OK)
 			}
 
 		})
 	}
 }
 
-func TestCheckHandler_login_bucket_is_full(t *testing.T) {
+func TestAPI_checkHandler_login_bucket_is_full(t *testing.T) {
 	tests := []struct {
 		name               string
 		requestBody        map[string]string
