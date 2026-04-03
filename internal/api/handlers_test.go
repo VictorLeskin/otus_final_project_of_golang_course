@@ -773,20 +773,51 @@ func TestAPI_checkHandler_login_bucket_is_full(t *testing.T) {
 
 func TestAPI_resetHandler(t *testing.T) {
 	tests := []struct {
-		name           string
-		requestBody    map[string]string
-		expectedStatus int
-		expectedOK     bool
-		expectedError  string
+		name               string
+		requestBody        map[string]string
+		expectedStatus     int
+		expectedOK         bool
+		expectedError      string
+		expectedLoginCount int
+		expectedIPCount    int
 	}{
 		{
 			name: "successful reset of login bucket",
 			requestBody: map[string]string{
 				"login": "user0",
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus:     http.StatusOK,
+			expectedOK:         true,
+			expectedError:      "",
+			expectedLoginCount: 1,
+			expectedIPCount:    3,
+		},
+		{
+			name: "successful reset of ip bucket",
+			requestBody: map[string]string{
+				"ip": "150.151.152.153",
+			},
+			expectedStatus:     http.StatusOK,
+			expectedOK:         true,
+			expectedError:      "",
+			expectedLoginCount: 2,
+			expectedIPCount:    2,
+		},
+		{
+			name: "wrong request",
+			requestBody: map[string]string{
+				"ip0": "150.151.152.153",
+			},
+			expectedStatus: http.StatusBadRequest,
 			expectedOK:     true,
-			expectedError:  "",
+			expectedError:  "login or ip required",
+		},
+		{
+			name:           "missed request",
+			requestBody:    nil,
+			expectedStatus: http.StatusBadRequest,
+			expectedOK:     false,
+			expectedError:  "invalid request body",
 		},
 	}
 
@@ -806,6 +837,17 @@ func TestAPI_resetHandler(t *testing.T) {
 				bucketManager: bm,
 				storage:       memStorage,
 			}
+
+			// add tokens to all buckets
+			_ = bm.CheckAuth("user0", "password0", "100.101.102.103")
+			_ = bm.CheckAuth("user0", "password0", "200.201.202.203")
+			_ = bm.CheckAuth("user1", "password1", "150.151.152.153")
+
+			bucketStats := bm.Stats()
+
+			require.Equal(t, 2, bucketStats["login"])
+			require.Equal(t, 2, bucketStats["password"])
+			require.Equal(t, 3, bucketStats["ip"])
 
 			// Формируем запрос
 			body, _ := json.Marshal(tt.requestBody)
@@ -828,7 +870,12 @@ func TestAPI_resetHandler(t *testing.T) {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
+
+				bucketStats := bm.Stats()
 				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+				assert.Equal(t, tt.expectedLoginCount, bucketStats["login"])
+				assert.Equal(t, 2, bucketStats["password"])
+				assert.Equal(t, tt.expectedIPCount, bucketStats["ip"])
 			}
 
 		})
