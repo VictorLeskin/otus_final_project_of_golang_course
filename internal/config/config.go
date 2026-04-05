@@ -8,10 +8,10 @@ import (
 )
 
 type Config struct {
-	// Server settings
+	// Server settings.
 	Port string `json:"port"`
 
-	// Storage settings
+	// Storage settings.
 	StorageType string `json:"storage_type"` // "memory" or "postgres"
 
 	// PostgreSQL settings
@@ -31,7 +31,7 @@ type Config struct {
 
 func GetDefault() *Config {
 	return &Config{
-		// Server settings
+		// Server settings.
 		Port: "8080",
 
 		StorageType: "memory",
@@ -67,13 +67,18 @@ func setMissedToDefault(cfg *Config) {
 }
 
 func Load() (*Config, error) {
-	// Флаги командной строки
+	// Флаги командной строки.
 	configPath := flag.String("config", "config.json", "path to config file")
 	flag.Parse()
 
-	// Загружаем из файла
+	// Загружаем из файла.
 	file, err := os.Open(*configPath)
 	if err != nil {
+		// Если файл не найден, возвращаем default конфиг.
+		if os.IsNotExist(err) {
+			cfg := GetDefault()
+			return cfg, nil
+		}
 		return nil, err
 	}
 	defer file.Close()
@@ -83,7 +88,7 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	// Значения по умолчанию
+	// Значения по умолчанию.
 	setMissedToDefault(&cfg)
 
 	return &cfg, nil
