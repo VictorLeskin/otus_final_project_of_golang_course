@@ -95,7 +95,7 @@ func (ms *MemoryStorage) Remove(ctx context.Context, l models.IPList) error {
 	return nil
 }
 
-func (ms *MemoryStorage) GetIpList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
+func (ms *MemoryStorage) GetIPList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 

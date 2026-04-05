@@ -110,7 +110,7 @@ func (a *API) resetHandler(w http.ResponseWriter, r *http.Request) {
 
 // whitelistHandler возвращает белый список
 func (a *API) whitelistHandler(w http.ResponseWriter, r *http.Request) {
-	subnets, err := a.storage.GetIpList(r.Context(), models.Black)
+	subnets, err := a.storage.GetIPList(r.Context(), models.Black)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to get whitelist")
 		return
@@ -169,7 +169,7 @@ func makeListResponse(subnets []models.IPList) (ret ListResponse) {
 
 // blacklistHandler возвращает черный список
 func (a *API) blacklistHandler(w http.ResponseWriter, r *http.Request) {
-	subnets, err := a.storage.GetIpList(r.Context(), models.Black)
+	subnets, err := a.storage.GetIPList(r.Context(), models.Black)
 	if err != nil {
 		sendError(w, http.StatusInternalServerError, "failed to get blacklist")
 		return

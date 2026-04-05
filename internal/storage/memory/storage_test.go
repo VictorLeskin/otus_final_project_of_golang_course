@@ -155,9 +155,9 @@ func TestStorage_Remove(t *testing.T) {
 	})
 }
 
-func TestStorage_GetIpList(t *testing.T) {
+func TestStorage_GetIPList(t *testing.T) {
 	t0 := New()
-	r1, err1 := t0.GetIpList(context.Background(), models.White)
+	r1, err1 := t0.GetIPList(context.Background(), models.White)
 	assert.Equal(t, 0, len(r1))
 	assert.NoError(t, err1)
 
@@ -180,13 +180,13 @@ func TestStorage_GetIpList(t *testing.T) {
 	t0.ipList = append(t0.ipList, t2)
 	t0.ipList = append(t0.ipList, t3)
 
-	r2, err2 := t0.GetIpList(context.Background(), models.White)
+	r2, err2 := t0.GetIPList(context.Background(), models.White)
 	assert.Equal(t, 2, len(r2))
 	assert.Equal(t, "192.168.1.0/24", r2[0].Subnet)
 	assert.Equal(t, "192.168.1.2/24", r2[1].Subnet)
 	assert.NoError(t, err2)
 
-	r3, err3 := t0.GetIpList(context.Background(), models.Black)
+	r3, err3 := t0.GetIPList(context.Background(), models.Black)
 	assert.Equal(t, 1, len(r3))
 	assert.Equal(t, "192.168.1.1/24", r3[0].Subnet)
 	assert.NoError(t, err3)
@@ -194,7 +194,7 @@ func TestStorage_GetIpList(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	r2, err2 = t0.GetIpList(ctx, models.White)
+	r2, err2 = t0.GetIPList(ctx, models.White)
 	assert.Nil(t, r2)
 	assert.ErrorIs(t, err2, context.Canceled)
 }

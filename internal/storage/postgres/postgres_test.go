@@ -241,7 +241,7 @@ func TestPostgresStorage_Remove(t *testing.T) {
 	})
 }
 
-func TestPostgresStorage_GetIpList(t *testing.T) {
+func TestPostgresStorage_GetIPList(t *testing.T) {
 	// Пропускаем если тесты запускаются в коротком режиме
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
@@ -266,14 +266,14 @@ func TestPostgresStorage_GetIpList(t *testing.T) {
 		_ = store.Add(ctx, store.createIPList(subnet31, models.Black))
 		_ = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
 
-		items, err := store.GetIpList(ctx, models.White)
+		items, err := store.GetIPList(ctx, models.White)
 		require.NoError(t, err)
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
 			subnet30:             bool(models.White),
 			"173.194.221.138/31": bool(models.White),
 		})
 
-		items, err = store.GetIpList(ctx, models.Black)
+		items, err = store.GetIPList(ctx, models.Black)
 		require.NoError(t, err)
 		assert.Equal(t, getSubnetsAsMap(items), map[string]bool{
 			subnet31:             bool(models.Black),
@@ -289,7 +289,7 @@ func TestPostgresStorage_GetIpList(t *testing.T) {
 		_ = store.Add(ctx, store.createIPList(subnet31, models.Black))
 		_ = store.Add(ctx, store.createIPList("173.194.221.138/31", models.White))
 
-		items, err := store.GetIpList(ctx1, models.White)
+		items, err := store.GetIPList(ctx1, models.White)
 		assert.Nil(t, items)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, context.Canceled)

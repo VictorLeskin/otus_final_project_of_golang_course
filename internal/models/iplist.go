@@ -37,11 +37,13 @@ func (il *IPList) Validate() error {
 }
 
 // AreSame проверяет что записи ииеет такие subnet и тип
+//nolint:revive // lhv означает left hand value, удобно для сравнения
 func (lhv *IPList) AreSameS(subnet string, isWhite ListType) bool {
 	return (lhv.IsWhite == isWhite) && (lhv.Subnet == subnet)
 }
 
 // AreSame проверяет что записи совпадают
+//nolint:revive // lhv означает left hand value, удобно для сравнения
 func (lhv *IPList) AreSame(rhv *IPList) bool {
 	return lhv.AreSameS(rhv.Subnet, rhv.IsWhite)
 }

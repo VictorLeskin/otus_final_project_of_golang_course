@@ -87,8 +87,8 @@ func (s *PostgresStorage) Remove(ctx context.Context, l models.IPList) error {
 	return err
 }
 
-// GetIpList возвращает все подсети из указанного списка
-func (s *PostgresStorage) GetIpList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
+// GetIPList возвращает все подсети из указанного списка
+func (s *PostgresStorage) GetIPList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT subnet, list_type
          FROM ip_lists
@@ -160,7 +160,7 @@ func (s *PostgresStorage) Contains(ctx context.Context, listType models.ListType
 		return false, fmt.Errorf("invalid IP address: %s", address)
 	}
 
-	ipList, err := s.GetIpList(ctx, listType)
+	ipList, err := s.GetIPList(ctx, listType)
 	if err != nil {
 		return false, err
 	}
@@ -191,7 +191,7 @@ func (s *PostgresStorage) IsIPAuthorized(ctx context.Context, ip string) (bool, 
 	}
 
 	// 2. Получаем whitelist
-	whiteList, err := s.GetIpList(ctx, models.White)
+	whiteList, err := s.GetIPList(ctx, models.White)
 	if err != nil {
 		return false, err
 	}

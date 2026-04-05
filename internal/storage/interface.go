@@ -24,7 +24,7 @@ type IPListStorage interface {
 	// Contains проверяет, содержится ли IP в указанном списке
 	Contains(ctx context.Context, listType models.ListType, address string) (bool, error)
 
-	GetIpList(ctx context.Context, listType models.ListType) ([]models.IPList, error)
+	GetIPList(ctx context.Context, listType models.ListType) ([]models.IPList, error)
 	GetAll(ctx context.Context) ([]models.IPList, error)
 
 	// Clear очищает указанный список (опционально)
