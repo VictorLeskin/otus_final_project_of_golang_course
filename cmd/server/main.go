@@ -14,7 +14,7 @@ import (
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/config"
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage"
 	memorystorage "github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/memory"
-	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/postgresstorage"
+	postgresstorage "github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/postgres"
 )
 
 func CreatePostgresStorage(cfg config.Config) storage.IPListStorage {
