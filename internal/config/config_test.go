@@ -19,7 +19,6 @@ func TestSetMissedToDefault(t *testing.T) {
 		assert.Equal(t, expected.PasswordRate, cfg.PasswordRate)
 		assert.Equal(t, expected.IPRate, cfg.IPRate)
 		assert.Equal(t, expected.CleanupInterval, cfg.CleanupInterval)
-		assert.Equal(t, expected.MaxIdleTime, cfg.MaxIdleTime)
 	})
 
 	t.Run("полностью заполненный конфиг - значения не меняются", func(t *testing.T) {
@@ -30,7 +29,6 @@ func TestSetMissedToDefault(t *testing.T) {
 			PasswordRate:    200,
 			IPRate:          2000,
 			CleanupInterval: 600,
-			MaxIdleTime:     1200,
 		}
 
 		original := *cfg

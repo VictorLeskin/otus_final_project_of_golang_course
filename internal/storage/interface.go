@@ -14,6 +14,9 @@ type Config struct {
 }
 
 type IPListStorage interface {
+	// Connect открывает соединение
+	Connect(ctx context.Context) error
+
 	// Add добавляет подсеть в указанный список
 	Add(ctx context.Context, l models.IPList) error
 

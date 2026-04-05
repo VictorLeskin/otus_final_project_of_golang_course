@@ -27,7 +27,6 @@ type Config struct {
 	PasswordRate    int `json:"password_rate"`    // M
 	IPRate          int `json:"ip_rate"`          // K
 	CleanupInterval int `json:"cleanup_interval"` // seconds
-	MaxIdleTime     int `json:"max_idle_time"`    // seconds
 }
 
 func GetDefault() *Config {
@@ -42,7 +41,6 @@ func GetDefault() *Config {
 		PasswordRate:    100,
 		IPRate:          1000,
 		CleanupInterval: 300, // 5 minutes
-		MaxIdleTime:     600, // 10 minutes
 	}
 }
 
@@ -65,9 +63,6 @@ func setMissedToDefault(cfg *Config) {
 	}
 	if cfg.CleanupInterval == 0 {
 		cfg.CleanupInterval = def.CleanupInterval
-	}
-	if cfg.MaxIdleTime == 0 {
-		cfg.MaxIdleTime = def.MaxIdleTime
 	}
 }
 
@@ -97,8 +92,4 @@ func Load() (*Config, error) {
 // Duration helpers
 func (c *Config) GetCleanupInterval() time.Duration {
 	return time.Duration(c.CleanupInterval) * time.Second
-}
-
-func (c *Config) GetMaxIdleTime() time.Duration {
-	return time.Duration(c.MaxIdleTime) * time.Second
 }
