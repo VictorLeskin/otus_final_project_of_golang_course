@@ -220,7 +220,7 @@ func (a *API) blacklistRemoveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // statsHandler возвращает статистику по bucket'ам
-func (a *API) statsHandler(w http.ResponseWriter, r *http.Request) {
+func (a *API) statsHandler(w http.ResponseWriter, _ *http.Request) {
 	stats := a.bucketManager.Stats()
 	sendJSON(w, http.StatusOK, stats)
 }

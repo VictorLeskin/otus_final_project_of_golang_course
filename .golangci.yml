@@ -18,6 +18,13 @@ linters-settings:
           - $gostd
           - github.com/lib/pq
           - google.golang.org/protobuf/types/known/timestamppb
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/api
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/bucket 
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/config 
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage 
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/memory
+          - github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/postgres
       Test:
         files:
           - $test

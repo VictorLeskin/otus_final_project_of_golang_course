@@ -36,11 +36,11 @@ func (ms *MemoryStorage) find(subnet string, isWhite models.ListType) *models.IP
 	return nil
 }
 
-func (_ *MemoryStorage) Connect(_ context.Context) error {
+func (*MemoryStorage) Connect(_ context.Context) error {
 	return nil
 }
 
-func (_ *MemoryStorage) Close(_ context.Context) error {
+func (*MemoryStorage) Close(_ context.Context) error {
 	return nil
 }
 
