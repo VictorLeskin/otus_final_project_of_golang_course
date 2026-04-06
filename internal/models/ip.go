@@ -66,6 +66,7 @@ func ValidateIPOrSubnet(s string) error {
 		return ErrEmptyString
 	}
 
+	//nolint:exhaustive
 	switch DetectIPType(s) {
 	case IPTypeSingle:
 		return nil

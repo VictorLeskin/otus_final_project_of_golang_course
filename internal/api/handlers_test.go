@@ -17,28 +17,27 @@ import (
 	memorystorage "github.com/VictorLeskin/otus_final_project_of_golang_course/internal/storage/memory"
 )
 
-// equalIPLists сравнивает два списка IPList по Subnet и IsWhite (игнорирует ID и CreatedAt)
-func equalIPLists(t *testing.T, got, want []models.IPList) bool {
+// equalIPLists сравнивает два списка IPList по Subnet и IsWhite (игнорирует ID и CreatedAt).
+func equalIPLists(t *testing.T, got, want []models.IPList) {
+	t.Helper()
 	if len(got) != len(want) {
-		return false
+		return
 	}
 
-	// Создаем map для быстрого поиска
+	// Создаем map для быстрого поиска.
 	gotMap := make(map[string]bool)
 	for _, item := range got {
 		key := fmt.Sprintf("%s:%t", item.Subnet, item.IsWhite)
 		gotMap[key] = true
 	}
 
-	// Проверяем, что все ожидаемые элементы есть
+	// Проверяем, что все ожидаемые элементы есть.
 	wantMap := make(map[string]bool)
 	for _, item := range want {
 		key := fmt.Sprintf("%s:%t", item.Subnet, item.IsWhite)
 		wantMap[key] = true
 	}
 	assert.Equal(t, gotMap, wantMap)
-
-	return true
 }
 
 func CreateTestBucketManager() *bucket.BucketManager {
@@ -50,6 +49,7 @@ func CreateTestBucketManager() *bucket.BucketManager {
 }
 
 func RequestBody(t *testing.T, requestBody map[string]string) []byte {
+	t.Helper()
 	var body []byte
 	if requestBody != nil {
 		var err error
@@ -60,6 +60,7 @@ func RequestBody(t *testing.T, requestBody map[string]string) []byte {
 }
 
 func checkErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedError string) {
+	t.Helper()
 	var resp ErrorResponse
 	err := json.NewDecoder(w.Body).Decode(&resp)
 	require.NoError(t, err)
@@ -101,7 +102,7 @@ func TestAPI_checkRequest_validate(t *testing.T) {
 	}
 }
 
-// TestBlacklistAddHandler тестирует добавление подсети в черный список
+// TestBlacklistAddHandler тестирует добавление подсети в черный список.
 func TestAPI_blacklistAddHandler(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -151,34 +152,34 @@ func TestAPI_blacklistAddHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: CreateTestBucketManager(),
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			body := RequestBody(t, tt.requestBody)
 			req := httptest.NewRequest("POST", "/blacklist/add", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.blacklistAddHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				// Проверяем тело ответа
+				// Проверяем тело ответа.
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
-				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}.
 
 				subnets, _ := memStorage.GetAll(context.Background())
 				equalIPLists(t, subnets, []models.IPList{
@@ -238,36 +239,36 @@ func TestAPI_blacklistRemoveHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: false})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: false})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: CreateTestBucketManager(),
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			body := RequestBody(t, tt.requestBody)
 			req := httptest.NewRequest("POST", "/blacklist/remove", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.blacklistRemoveHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				// Проверяем тело ответа
+				// Проверяем тело ответа.
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
-				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}.
 
 				subnets, _ := memStorage.GetAll(context.Background())
 				equalIPLists(t, subnets, []models.IPList{
@@ -301,36 +302,36 @@ func TestAPI_blacklistHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: false})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "110.111.112.113/31", IsWhite: true})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: false})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: CreateTestBucketManager(),
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			ctx1, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			if tt.cancel {
-				cancel() // run cancel to cause server error
+				cancel() // run cancel to cause server error.
 			}
 
 			req := httptest.NewRequestWithContext(ctx1, "GET", "/blacklist", nil)
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.blacklistHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				// Проверяем тело ответа
+				// Проверяем тело ответа.
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
@@ -396,34 +397,34 @@ func TestAPI_whitelistAddHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: CreateTestBucketManager(),
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			body := RequestBody(t, tt.requestBody)
 			req := httptest.NewRequest("POST", "/whitelist/add", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.whitelistAddHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				// Проверяем тело ответа
+				// Проверяем тело ответа.
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
-				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}.
 
 				subnets, _ := memStorage.GetAll(context.Background())
 				equalIPLists(t, subnets, []models.IPList{
@@ -483,36 +484,36 @@ func TestAPI_whitelistRemoveHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: true})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: true})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: CreateTestBucketManager(),
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			body := RequestBody(t, tt.requestBody)
 			req := httptest.NewRequest("POST", "/whitelist/remove", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.whitelistRemoveHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				// Проверяем тело ответа
+				// Проверяем тело ответа.
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
-				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}.
 
 				subnets, _ := memStorage.GetAll(context.Background())
 				equalIPLists(t, subnets, []models.IPList{
@@ -546,23 +547,23 @@ func TestAPI_whitelistHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/31", IsWhite: true})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "110.111.112.113/31", IsWhite: false})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "192.168.1.0/24", IsWhite: true})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: CreateTestBucketManager(),
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			ctx1, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			if tt.cancel {
-				cancel() // run cancel to cause server error
+				cancel() // run cancel to cause server error.
 			}
 
 			req := httptest.NewRequestWithContext(ctx1, "GET", "/whitelist", nil)
@@ -570,14 +571,14 @@ func TestAPI_whitelistHandler(t *testing.T) {
 
 			req.Context()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.whitelistHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {
-				// Проверяем тело ответа
+				// Проверяем тело ответа.
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
 				var resp SuccessfulResponse
@@ -663,7 +664,7 @@ func TestAPI_checkHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 			memStorage.Add(context.Background(), models.IPList{Subnet: "100.101.102.103/24", IsWhite: true})
 			memStorage.Add(context.Background(), models.IPList{Subnet: "110.111.112.113/24", IsWhite: false})
@@ -675,7 +676,7 @@ func TestAPI_checkHandler(t *testing.T) {
 				IPRate:       1000,
 			})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: bm,
 				storage:       memStorage,
@@ -684,10 +685,10 @@ func TestAPI_checkHandler(t *testing.T) {
 			ctx1, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			if tt.cancel {
-				cancel() // run cancel to cause server error
+				cancel() // run cancel to cause server error.
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			body, _ := json.Marshal(tt.requestBody)
 			if tt.requestBody == nil {
 				body = nil
@@ -695,13 +696,13 @@ func TestAPI_checkHandler(t *testing.T) {
 			req := httptest.NewRequestWithContext(ctx1, "POST", "/check", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.checkHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
-			// Проверяем ответ
+			// Проверяем ответ.
 			if tt.expectedError != "" {
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
@@ -710,7 +711,6 @@ func TestAPI_checkHandler(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedOK, resp.OK)
 			}
-
 		})
 	}
 }
@@ -734,7 +734,7 @@ func TestAPI_checkHandler_login_bucket_is_full(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 
 			bm := bucket.NewBucketManager(&bucket.Config{
@@ -743,25 +743,25 @@ func TestAPI_checkHandler_login_bucket_is_full(t *testing.T) {
 				IPRate:       1000,
 			})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: bm,
 				storage:       memStorage,
 			}
 
-			// Формируем запрос
+			// Формируем запрос.
 			for _, res := range tt.expectedRunResults {
 				body, _ := json.Marshal(tt.requestBody)
 				req := httptest.NewRequest("POST", "/check", bytes.NewReader(body))
 				w := httptest.NewRecorder()
 
-				// Вызываем handler
+				// Вызываем handler.
 				api.checkHandler(w, req)
 
-				// Проверяем статус
+				// Проверяем статус.
 				assert.Equal(t, http.StatusOK, w.Code)
 
-				// Проверяем ответ
+				// Проверяем ответ.
 				var resp CheckResponse
 				err := json.NewDecoder(w.Body).Decode(&resp)
 				require.NoError(t, err)
@@ -823,7 +823,7 @@ func TestAPI_resetHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем мок storage
+			// Создаем мок storage.
 			memStorage := memorystorage.New()
 
 			bm := bucket.NewBucketManager(&bucket.Config{
@@ -832,13 +832,13 @@ func TestAPI_resetHandler(t *testing.T) {
 				IPRate:       1000,
 			})
 
-			// Создаем API с моком
+			// Создаем API с моком.
 			api := &API{
 				bucketManager: bm,
 				storage:       memStorage,
 			}
 
-			// add tokens to all buckets
+			// add tokens to all buckets.
 			_ = bm.CheckAuth("user0", "password0", "100.101.102.103")
 			_ = bm.CheckAuth("user0", "password0", "200.201.202.203")
 			_ = bm.CheckAuth("user1", "password1", "150.151.152.153")
@@ -849,7 +849,7 @@ func TestAPI_resetHandler(t *testing.T) {
 			require.Equal(t, 2, bucketStats["password"])
 			require.Equal(t, 3, bucketStats["ip"])
 
-			// Формируем запрос
+			// Формируем запрос.
 			body, _ := json.Marshal(tt.requestBody)
 			if tt.requestBody == nil {
 				body = nil
@@ -857,13 +857,13 @@ func TestAPI_resetHandler(t *testing.T) {
 			req := httptest.NewRequest("POST", "/reset", bytes.NewReader(body))
 			w := httptest.NewRecorder()
 
-			// Вызываем handler
+			// Вызываем handler.
 			api.resetHandler(w, req)
 
-			// Проверяем статус
+			// Проверяем статус.
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
-			// Проверяем ответ
+			// Проверяем ответ.
 			if tt.expectedError != "" {
 				checkErrorResponse(t, w, tt.expectedError)
 			} else {
@@ -872,12 +872,11 @@ func TestAPI_resetHandler(t *testing.T) {
 				require.NoError(t, err)
 
 				bucketStats := bm.Stats()
-				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}
+				assert.Equal(t, "ok", resp.Status) // предполагаем что sendJSON отправляет map[string]string{"status": "ok"}.
 				assert.Equal(t, tt.expectedLoginCount, bucketStats["login"])
 				assert.Equal(t, 2, bucketStats["password"])
 				assert.Equal(t, tt.expectedIPCount, bucketStats["ip"])
 			}
-
 		})
 	}
 }

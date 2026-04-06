@@ -293,7 +293,6 @@ func TestNewBucketManager_CheckAuth(t *testing.T) {
 	assert.Equal(t, 2, t0.BucketStats(t0.loginBuckets.buckets)["user0"])
 	assert.Equal(t, 2, t0.BucketStats(t0.passwordBuckets.buckets)["password0"])
 	assert.Equal(t, 2, t0.BucketStats(t0.ipBuckets.buckets)["ip0"])
-
 }
 
 func TestNewBucketManager_Stop(t *testing.T) {

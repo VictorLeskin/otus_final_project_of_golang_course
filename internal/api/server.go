@@ -7,16 +7,16 @@ import (
 	"time"
 )
 
-// Server представляет HTTP сервер API
+// Server представляет HTTP сервер API.
 type Server struct {
 	srv *http.Server
 }
 
-// NewServer создает новый HTTP сервер
+// NewServer создает новый HTTP сервер.
 // Timeout'ы:
-// ReadTimeout — время на чтение запроса
-// WriteTimeout — время на отправку ответа
-// IdleTimeout — время удержания keep-alive соединения
+// ReadTimeout — время на чтение запроса.
+// WriteTimeout — время на отправку ответа.
+// IdleTimeout — время удержания keep-alive соединения.
 func NewServer(addr string, handler http.Handler) *Server {
 	return &Server{
 		srv: &http.Server{
@@ -29,21 +29,21 @@ func NewServer(addr string, handler http.Handler) *Server {
 	}
 }
 
-// Start запускает сервер
+// Start запускает сервер.
 func (s *Server) Start() error {
 	fmt.Printf("Starting API server on %s\n", s.srv.Addr)
-	//Ошибка http.ErrServerClosed:
-	//Нормальная ошибка при остановке, не нужно на нее ругаться
+	// Ошибка http.ErrServerClosed:
+	// Нормальная ошибка при остановке, не нужно на нее ругаться
 	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
 }
 
-// Stop gracefully останавливает сервер
+// Stop gracefully останавливает сервер.
 // Graceful shutdown:
-// Shutdown(ctx) — ждет завершения текущих запросов
-// Не обрывает активные соединения
+// Shutdown(ctx) — ждет завершения текущих запросов.
+// Не обрывает активные соединения.
 func (s *Server) Stop(ctx context.Context) error {
 	fmt.Println("Shutting down API server...")
 	return s.srv.Shutdown(ctx)

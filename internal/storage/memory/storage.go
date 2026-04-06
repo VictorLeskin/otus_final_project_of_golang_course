@@ -45,7 +45,7 @@ func (*MemoryStorage) Close(_ context.Context) error {
 }
 
 func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
-	//checking
+	// checking
 	if err := l.Validate(); err != nil {
 		return fmt.Errorf("invalid IP list entry: %w", err)
 	}
@@ -182,7 +182,6 @@ func (ms *MemoryStorage) ClearAll(ctx context.Context) error {
 //   - bool: true если адрес найден в списке, false если нет
 //   - error: ошибка при парсинге address или проблемах с БД
 func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType, address string) (bool, error) {
-
 	// Проверяем IP на валидность
 	ipAddr := net.ParseIP(address)
 	if ipAddr == nil {

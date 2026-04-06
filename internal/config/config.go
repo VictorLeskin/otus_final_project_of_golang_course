@@ -94,7 +94,7 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-// Duration helpers
+// Duration helpers.
 func (c *Config) GetCleanupInterval() time.Duration {
 	return time.Duration(c.CleanupInterval) * time.Second
 }

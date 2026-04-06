@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// LoggingMiddleware логирует запросы
+// LoggingMiddleware логирует запросы.
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -15,7 +15,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// JSONMiddleware устанавливает Content-Type
+// JSONMiddleware устанавливает Content-Type.
 func JSONMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
