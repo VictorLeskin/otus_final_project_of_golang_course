@@ -1,0 +1,8 @@
+{
+    "port": "8080",
+    "storage_type": "memory",
+    "login_rate": 10,
+    "password_rate": 100,
+    "ip_rate": 1000,
+    "cleanup_interval": 300
+}

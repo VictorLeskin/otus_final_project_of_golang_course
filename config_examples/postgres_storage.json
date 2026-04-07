@@ -1,0 +1,14 @@
+ {
+    "port": "8080",
+    "storage_type": "postgres",
+    "postgres_host": "localhost",
+    "postgres_port": 5432,
+    "postgres_user": "postgres",
+    "postgres_password": "123456",
+    "postgres_db": "ip_list_test",
+    "postgres_sslmode": "disable",
+    "login_rate": 10,
+    "password_rate": 100,
+    "ip_rate": 1000,
+    "cleanup_interval": 300
+}
