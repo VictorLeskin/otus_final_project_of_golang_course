@@ -1,3 +1,8 @@
+rem  start server before
+rem go run cmd/server/main.go --config ./config_examples/postgres_storage.json
+rem go run cmd/server/main.go --config ./config_examples/memory_storage.json
+
+
 @echo off
 set BASE_URL=http://localhost:8080
 
