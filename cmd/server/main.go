@@ -67,8 +67,9 @@ func main() {
 
 	// HTTP сервер
 	srv := &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: apiServer.Router(),
+		Addr:              ":" + cfg.Port,
+		Handler:           apiServer.Router(),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// Запуск сервера в горутине
