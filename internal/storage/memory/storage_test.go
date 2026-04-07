@@ -44,7 +44,7 @@ func TestStorage_find(t *testing.T) {
 
 func TestStorage_Add(t *testing.T) {
 	t1 := models.IPList{
-		ID:      "id",
+		ID:      123456,
 		Subnet:  "192.168.1.0/24",
 		IsWhite: models.White,
 	}
@@ -55,7 +55,7 @@ func TestStorage_Add(t *testing.T) {
 		assert.NoError(t, err)
 
 		savedEvent := t0.find("192.168.1.0/24", models.White)
-		assert.Equal(t, "id", savedEvent.ID)
+		assert.Equal(t, int64(123456), savedEvent.ID)
 	})
 
 	t.Run("invalid subnet", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestStorage_Add(t *testing.T) {
 
 		err := t0.Add(context.Background(), t2)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, storage.ErrInvalidSubnetDetected)
+		assert.ErrorContains(t, err, "invalid IP address or subnet")
 	})
 
 	t.Run("nothing to do: duplicate event", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestStorage_Remove(t *testing.T) {
 		assert.Equal(t, 1, len(t0.ipList))
 
 		t2 := models.IPList{
-			Subnet:  "192.168.1.256/24",
+			Subnet:  "192.168.1.255/24",
 			IsWhite: models.White,
 		}
 
@@ -125,6 +125,20 @@ func TestStorage_Remove(t *testing.T) {
 		err = t0.Remove(context.Background(), t1)
 		assert.Equal(t, 0, len(t0.ipList))
 		assert.NoError(t, err)
+	})
+
+	t.Run("wrong input address", func(t *testing.T) {
+		t0 := New()
+		t0.Add(context.Background(), t1)
+		assert.Equal(t, 1, len(t0.ipList))
+
+		t2 := models.IPList{
+			Subnet:  "AAAAA.168.1.256/24",
+			IsWhite: models.White,
+		}
+
+		err := t0.Remove(context.Background(), t2)
+		assert.Error(t, err)
 	})
 
 	t.Run("fail: context cancellation", func(t *testing.T) {
@@ -141,9 +155,9 @@ func TestStorage_Remove(t *testing.T) {
 	})
 }
 
-func TestStorage_GetIpList(t *testing.T) {
+func TestStorage_GetIPList(t *testing.T) {
 	t0 := New()
-	r1, err1 := t0.GetIpList(context.Background(), models.White)
+	r1, err1 := t0.GetIPList(context.Background(), models.White)
 	assert.Equal(t, 0, len(r1))
 	assert.NoError(t, err1)
 
@@ -166,13 +180,13 @@ func TestStorage_GetIpList(t *testing.T) {
 	t0.ipList = append(t0.ipList, t2)
 	t0.ipList = append(t0.ipList, t3)
 
-	r2, err2 := t0.GetIpList(context.Background(), models.White)
+	r2, err2 := t0.GetIPList(context.Background(), models.White)
 	assert.Equal(t, 2, len(r2))
 	assert.Equal(t, "192.168.1.0/24", r2[0].Subnet)
 	assert.Equal(t, "192.168.1.2/24", r2[1].Subnet)
 	assert.NoError(t, err2)
 
-	r3, err3 := t0.GetIpList(context.Background(), models.Black)
+	r3, err3 := t0.GetIPList(context.Background(), models.Black)
 	assert.Equal(t, 1, len(r3))
 	assert.Equal(t, "192.168.1.1/24", r3[0].Subnet)
 	assert.NoError(t, err3)
@@ -180,7 +194,7 @@ func TestStorage_GetIpList(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	r2, err2 = t0.GetIpList(ctx, models.White)
+	r2, err2 = t0.GetIPList(ctx, models.White)
 	assert.Nil(t, r2)
 	assert.ErrorIs(t, err2, context.Canceled)
 }
@@ -267,11 +281,11 @@ func TestStorage_Clear(t *testing.T) {
 
 	err2 = t0.Clear(context.Background(), models.White)
 	r2, _ = t0.GetAll(context.Background())
+	assert.Nil(t, err2)
 	assert.Equal(t, 0, len(r2))
 }
 
 func TestStorage_ClearAll(t *testing.T) {
-
 	{
 		t0 := New()
 		err1 := t0.Clear(context.Background(), models.Black)
@@ -331,4 +345,139 @@ func TestStorage_ClearAll(t *testing.T) {
 		assert.ErrorIs(t, err2, context.Canceled)
 		assert.Equal(t, 3, len(t0.ipList))
 	}
+}
+func TestStorage_Contains(t *testing.T) {
+	t0 := New()
+	t1 := &models.IPList{
+		Subnet:  "191.168.1.0/24",
+		IsWhite: models.White,
+	}
+
+	t2 := &models.IPList{
+		Subnet:  "192.168.1.1/24",
+		IsWhite: models.Black,
+	}
+
+	t3 := &models.IPList{
+		Subnet:  "193.168.1.2/24",
+		IsWhite: models.White,
+	}
+
+	t0.ipList = append(t0.ipList, t1)
+	t0.ipList = append(t0.ipList, t2)
+	t0.ipList = append(t0.ipList, t3)
+
+	res0, err0 := t0.Contains(context.Background(), models.White, "191.168.1.111")
+	assert.True(t, res0)
+	assert.NoError(t, err0)
+
+	res1, err1 := t0.Contains(context.Background(), models.Black, "192.168.1.111")
+	assert.True(t, res1)
+	assert.NoError(t, err1)
+
+	res2, err2 := t0.Contains(context.Background(), models.White, "193.168.1.111")
+	assert.True(t, res2)
+	assert.NoError(t, err2)
+
+	resF, errF := t0.Contains(context.Background(), models.White, "194.168.1.111")
+	assert.False(t, resF)
+	assert.NoError(t, errF)
+
+	resI, errI := t0.Contains(context.Background(), models.White, "invalid")
+	assert.False(t, resI)
+	assert.ErrorIs(t, errI, storage.ErrInvalidAddressDetected)
+
+	res0, err0 = t0.Contains(context.Background(), models.White, "191.168.1.111")
+	assert.True(t, res0)
+	assert.NoError(t, err0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res0, err0 = t0.Contains(ctx, models.White, "191.168.1.111")
+	assert.False(t, res0)
+	assert.ErrorIs(t, err0, context.Canceled)
+}
+
+func TestStorage_count(t *testing.T) {
+	t0 := New()
+	t1 := &models.IPList{
+		Subnet:  "191.168.1.0/24",
+		IsWhite: models.White,
+	}
+
+	t2 := &models.IPList{
+		Subnet:  "192.168.1.1/24",
+		IsWhite: models.Black,
+	}
+
+	t3 := &models.IPList{
+		Subnet:  "193.168.1.2/24",
+		IsWhite: models.White,
+	}
+
+	assert.Equal(t, 0, t0.count(models.White))
+	assert.Equal(t, 0, t0.count(models.Black))
+
+	t0.ipList = append(t0.ipList, t1)
+	t0.ipList = append(t0.ipList, t2)
+	t0.ipList = append(t0.ipList, t3)
+
+	assert.Equal(t, 2, t0.count(models.White))
+	assert.Equal(t, 1, t0.count(models.Black))
+}
+
+func TestStorage_IsIPAuthorized(t *testing.T) {
+	t0 := New()
+	t1 := &models.IPList{
+		Subnet:  "191.168.1.0/32",
+		IsWhite: models.White,
+	}
+
+	t2 := &models.IPList{
+		Subnet:  "192.168.1.1/32",
+		IsWhite: models.Black,
+	}
+
+	t3 := &models.IPList{
+		Subnet:  "193.168.1.2/32",
+		IsWhite: models.White,
+	}
+
+	res, err := t0.IsIPAuthorized(context.Background(), "200.200.200.200")
+	assert.True(t, res)
+	assert.NoError(t, err)
+
+	t0.ipList = append(t0.ipList, t2)
+
+	// in the black list
+	res0, err0 := t0.IsIPAuthorized(context.Background(), "192.168.1.1")
+	assert.False(t, res0)
+	assert.NoError(t, err0)
+
+	res1, err1 := t0.IsIPAuthorized(context.Background(), "200.200.200.200")
+	assert.True(t, res1)
+	assert.NoError(t, err1)
+
+	t0.ipList = append(t0.ipList, t1)
+	t0.ipList = append(t0.ipList, t3)
+
+	res2, err2 := t0.IsIPAuthorized(context.Background(), "192.168.1.1")
+	assert.False(t, res2)
+	assert.NoError(t, err2)
+
+	res3, err3 := t0.IsIPAuthorized(context.Background(), "200.200.200.200")
+	assert.False(t, res3)
+	assert.NoError(t, err3)
+
+	res4, err4 := t0.IsIPAuthorized(context.Background(), "193.168.1.2")
+	assert.True(t, res4)
+	assert.NoError(t, err4)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	res5, err5 := t0.IsIPAuthorized(ctx, "193.168.1.2")
+	assert.False(t, res5)
+	assert.ErrorIs(t, err5, context.Canceled)
 }

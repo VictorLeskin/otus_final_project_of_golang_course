@@ -36,18 +36,18 @@ type BucketManager struct {
 
 // Config содержит настройки rate limiting'а.
 type Config struct {
-	loginRate    int // max attempts per minute for login
-	passwordRate int // max attempts per minute for password
-	ipRate       int // max attempts per minute for IP address
+	LoginRate    int // max attempts per minute for login
+	PasswordRate int // max attempts per minute for password
+	IPRate       int // max attempts per minute for IP address
 
 	CleanupInterval time.Duration // как часто чистить пустые bucket'ы
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		loginRate:       10, // no more 10 times in  1 minute
-		passwordRate:    100,
-		ipRate:          1000,
+		LoginRate:       10, // no more 10 times in  1 minute
+		PasswordRate:    100,
+		IPRate:          1000,
 		CleanupInterval: 1 * time.Minute, // once a minute
 	}
 }
@@ -63,9 +63,9 @@ func NewBucketManager(config *Config) *BucketManager {
 	}
 
 	m := &BucketManager{
-		loginBuckets:    NewBucketCollection(config.loginRate),
-		passwordBuckets: NewBucketCollection(config.passwordRate),
-		ipBuckets:       NewBucketCollection(config.ipRate),
+		loginBuckets:    NewBucketCollection(config.LoginRate),
+		passwordBuckets: NewBucketCollection(config.PasswordRate),
+		ipBuckets:       NewBucketCollection(config.IPRate),
 		config:          config,
 		stopCleanup:     make(chan struct{}),
 	}

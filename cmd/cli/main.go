@@ -1,6 +1,10 @@
 package main
 
+import (
+	"os"
+)
+
 func main() {
-    // TODO: Implement CLI client
-    println("CLI client starting...")
+	cli := NewCLI(os.Args)
+	os.Exit(cli.Run())
 }

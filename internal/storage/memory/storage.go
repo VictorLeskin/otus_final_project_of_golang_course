@@ -2,6 +2,8 @@ package memorystorage
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"sync"
 
 	"github.com/VictorLeskin/otus_final_project_of_golang_course/internal/models"
@@ -34,10 +36,18 @@ func (ms *MemoryStorage) find(subnet string, isWhite models.ListType) *models.IP
 	return nil
 }
 
+func (*MemoryStorage) Connect(_ context.Context) error {
+	return nil
+}
+
+func (*MemoryStorage) Close(_ context.Context) error {
+	return nil
+}
+
 func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
-	//checking
+	// checking
 	if err := l.Validate(); err != nil {
-		return storage.ErrInvalidSubnetDetected
+		return fmt.Errorf("invalid IP list entry: %w", err)
 	}
 
 	// subnet exist
@@ -61,6 +71,10 @@ func (ms *MemoryStorage) Add(ctx context.Context, l models.IPList) error {
 }
 
 func (ms *MemoryStorage) Remove(ctx context.Context, l models.IPList) error {
+	if err := l.Validate(); err != nil {
+		return fmt.Errorf("invalid IP list entry: %w", err)
+	}
+
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -81,7 +95,7 @@ func (ms *MemoryStorage) Remove(ctx context.Context, l models.IPList) error {
 	return nil
 }
 
-func (ms *MemoryStorage) GetIpList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
+func (ms *MemoryStorage) GetIPList(ctx context.Context, listType models.ListType) ([]models.IPList, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -156,4 +170,78 @@ func (ms *MemoryStorage) ClearAll(ctx context.Context) error {
 
 	ms.ipList = ms.ipList[:0]
 	return nil
+}
+
+// Contains проверяет принадлежность IP-адреса к указанному списку.
+// Параметры:
+//   - ctx: контекст для отмены операции
+//   - listType: тип списка (white/black)
+//   - address: IP-адрес или CIDR подсеть для проверки
+//
+// Возвращает:
+//   - bool: true если адрес найден в списке, false если нет
+//   - error: ошибка при парсинге address или проблемах с БД
+func (ms *MemoryStorage) Contains(ctx context.Context, listType models.ListType, address string) (bool, error) {
+	// Проверяем IP на валидность
+	ipAddr := net.ParseIP(address)
+	if ipAddr == nil {
+		return false, storage.ErrInvalidAddressDetected
+	}
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	default:
+	}
+
+	for _, ip := range ms.ipList {
+		if ip.IsWhite == listType {
+			if ip.Contains(ipAddr) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+// count возвращает количестов subnet даного типа
+// Параметры:
+//   - listType: тип списка (white/black)
+func (ms *MemoryStorage) count(listType models.ListType) int {
+	n := 0
+	for _, ip := range ms.ipList {
+		if ip.IsWhite == listType {
+			n++
+		}
+	}
+	return n
+}
+
+// IsIPAuthorized проверяет IP по white/black спискам.
+// Возвращает true, если IP разрешен:
+//   - не в blacklist и whitelist пуст
+//   - не в blacklist и IP в whitelist если white list не пуст)
+func (ms *MemoryStorage) IsIPAuthorized(ctx context.Context, ip string) (bool, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	resB, errB := ms.Contains(ctx, models.Black, ip)
+	if errB != nil {
+		return false, errB
+	}
+	if resB {
+		return false, nil
+	}
+
+	if ms.count(models.Black) == len(ms.ipList) {
+		return true, nil
+	}
+
+	resW, errW := ms.Contains(ctx, models.White, ip)
+	if errW != nil {
+		return false, errW
+	}
+	return resW, nil
 }

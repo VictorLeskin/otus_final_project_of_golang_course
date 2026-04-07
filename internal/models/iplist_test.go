@@ -1,6 +1,7 @@
 package models
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,7 +74,7 @@ func TestIPList_AreSame(t *testing.T) {
 	assert.False(t, lhv2.AreSame(&rhv2))
 }
 
-func TestIPList_AreSameSS(t *testing.T) {
+func TestIPList_AreSameS(t *testing.T) {
 	lhv := IPList{
 		Subnet:  "ABCD",
 		IsWhite: Black,
@@ -82,4 +83,30 @@ func TestIPList_AreSameSS(t *testing.T) {
 	assert.True(t, lhv.AreSameS("ABCD", Black))
 	assert.False(t, lhv.AreSameS("ABCD", White))
 	assert.False(t, lhv.AreSameS("ABCd", Black))
+}
+
+func TestIPList_Contains(t *testing.T) {
+	ipList := &IPList{Subnet: "192.168.1.0/24"}
+
+	assert.True(t, ipList.Contains(net.ParseIP("192.168.1.100")))
+	assert.False(t, ipList.Contains(net.ParseIP("192.168.0.100")))
+}
+
+func TestIPList_ContainsAddress(t *testing.T) {
+	ipList := &IPList{Subnet: "192.168.1.0/24"}
+
+	// a valid IP in a subnet -> true, nil
+	ok, err := ipList.ContainsAddress("192.168.1.100")
+	assert.True(t, ok)
+	assert.NoError(t, err)
+
+	// a valid IP out of a subnet -> false, nil
+	ok, err = ipList.ContainsAddress("192.168.0.100")
+	assert.False(t, ok)
+	assert.NoError(t, err)
+
+	// invalid IP -> false, error
+	ok, err = ipList.ContainsAddress("invalid")
+	assert.False(t, ok)
+	assert.Error(t, err)
 }
